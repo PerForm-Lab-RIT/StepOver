@@ -15,7 +15,7 @@ import viz
 import vizcave
 import vizact
 
-#import viztracker
+import viztracker
 #import Connector
 #import vizshape
 #from Foot import Foot
@@ -39,9 +39,9 @@ class virtualFloor():
 		self.caveCornersFileName = caveCornersFileName
 		self.cave.load(self.caveCornersFileName)
 		
-		self.cornerCoordinates_cIdx = [0,0,0]*4
+		self.cornerCoordinates_cIdx = [[0,0,0]] * 4
 
-		
+		1
 		#The powerwall, see vizard docs for info on powerwall
 		self.powerwall = None
 		
@@ -50,6 +50,7 @@ class virtualFloor():
 		
 		### Define the cave powerwall boundries in the world###
 		if(None == caveCornersFileName):
+			print 'Using default caveCorners'
 			self.powerwall = vizcave.Wall(  
 								upperLeft = [-1,0,1],
 								upperRight = [1,0,1],
@@ -60,26 +61,43 @@ class virtualFloor():
 			self.cave = vizcave.Cave()
 			# This loads the contents of the file directly into the cave object
 			self.cave.load(self.caveCornersFileName) #if None is not self.caveWallFileName else self.cave.addWall(self.powerwall)
-									
-	def setNewCornerPosition(self,cIdx,markerLocation_XYZ):
-		# cIdx = clockwise from top left
+
+								
+	def setNewCornerPosition(self,cIdx,markerNum):
 		
-		self.cornerCoordinates_cIdx[cIdx] = [-marker[2]/1000, marker[1]/1000, -marker[0]/1000]
+		# cIdx = clockwise from top left
+		markerLocation_XYZ = self.config.mocap.getMarkerPosition(markerNum)
+		
+		if( markerLocation_XYZ is None):
+			print 'Marker data is no good!'
+			return
+		else:
+			print str(markerLocation_XYZ)
+			
+		self.cornerCoordinates_cIdx[cIdx] = [markerLocation_XYZ[0], markerLocation_XYZ[1], markerLocation_XYZ[2]]
 		
 		if( self.isAFloor ):
 			print 'Updated corner of floor with height = 0'
-			self.cornerCoordinates_cIdx[cIdx] = 0;
+			self.cornerCoordinates_cIdx[cIdx][1] = 0;
 		else:
 			print 'Updated corner.'
 			
 	def updatePowerwall(self):
 		
-		if( self.cave == none ):
+		if( self.cave == None):
+			print 'APPLE'
 			self.cave = vizcave.Cave()
 		else:
+			print 'banana'
 			self.cave.removeWall(self.powerwall)
 			self.cave.clear()
 		
+#		self.powerwall = vizcave.Wall(  upperLeft = [-1,0,1],
+#						upperRight = [1,0,1],
+#						lowerRight = [1,0,-1],
+#						lowerLeft = [-1,0,-1],
+#						name = self.planeName )
+
 		self.powerwall = vizcave.Wall(  upperLeft = self.cornerCoordinates_cIdx[0],
 								upperRight = self.cornerCoordinates_cIdx[1],
 								lowerRight = self.cornerCoordinates_cIdx[2],
@@ -92,22 +110,124 @@ class virtualFloor():
 		self.cave.update()
 		self.cave.save('caveWallDimensions.cave')
 
+	def useDefaultView(self):
+		
+		"""
+		The cave_origin node is a standard Vizard node that you can apply any position/rotation to.
+		In this example we will create a keyboard/mouse tracker (using arrow keys) and link it to
+		the cave_origin node, allowing us to  fly the cave user through the virtual environment.
+		"""
+
+		origin_tracker = viztracker.KeyboardMouse6DOF()
+		origin_link = viz.link(origin_tracker, cave_origin)
+		#origin_link.setMask(viz.LINK_POS)
+		
+
+		
+		
+	def attachViewToGlasses(self,visNode,glassesRigid):
+		
+		"""
+		Create tracker object that represents the users head position, specifically the center of the eyes.
+		The position provided by the head tracker must be in the same reference frame as the cave wall coordinates.
+		This will normally be a tracking sensor, but for this example we will simulate a head tracker
+		using the keyboard (WASD keys).
+		"""
+		self.head_tracker = viz.link(visNode,viz.NullLinkable,srcFlag=viz.ABS_PARENT)
+		
+		"""
+		Create CaveView object for manipulating the virtual viewpoint.
+		cave_origin is a node that controls the position of the cave within the virtual world.
+		For example, if you wanted to simulate the cave user flying through an environment,
+		you would apply the transformation to the cave_origin node.
+		"""
+		cave_origin = vizcave.CaveView(self.head_tracker)
+
+		"""
+		The cave_origin node is a standard Vizard node that you can apply any position/rotation to.
+		In this example we will create a keyboard/mouse tracker (using arrow keys) and link it to
+		the cave_origin node, allowing us to  fly the cave user through the virtual environment.
+		"""
+
+		origin_tracker = viztracker.KeyboardMouse6DOF()
+		origin_link = viz.link(origin_tracker, cave_origin)
+		origin_link.setMask(viz.LINK_POS)
+		
+		
+		#head_tracker.setMask(viz.LINK_POS)
+
+		
+		"""
+		Pass the head tracker to the cave object so it can automatically update the
+		view frustums every frame based on the current head position relative to each wall.
+		"""
+		self.cave.setTracker(self.head_tracker)
+
+	
+	def getCenterPos(self,planeName='floor'):
+		
+		center_XYZ = [0,0,0]
+		
+		walls_wIdx = self.cave.getWalls()
+		
+		for wIdx in range(len(walls_wIdx)):
+			if( walls_wIdx[wIdx]._name == planeName):
+				center_XYZ = walls_wIdx[0].getCenter()
+		
+		return center_XYZ
+		
 if __name__ == "__main__":	
 	
-	
-
-	
-
 	expConfigName = 'exampleExpConfig.cfg'
 	import vrlabConfig
 	config = vrlabConfig.VRLabConfig(expConfigName)
 	
 	#def __init__(self, config=None, planeName = 'floor', isAFloor = 1, caveCornersFileName = None, debug = True):
 	env = virtualFloor(caveCornersFileName = 'caveWallDimensions.cave',config=config,planeName = 'floor', isAFloor = 1)
+
+	import visEnv
+	#def __init__(self,room,shape,size,position=[0,.25,-3],color=[.5,0,0],alpha = 1):
 	
-#	viz.window.setFullscreenMonitor(2)
-#	viz.setMultiSample(8)
-#	viz.go(viz.FULLSCREEN | viz.QUAD_BUFFER)
-#	
-	#room = room(config )
+	room = visEnv.room(config)
+	room.walls.remove()
+	
 	viz.addChild('piazza.osgb')
+	
+	shutterRigid = config.mocap.returnPointerToRigid('shutter')
+	
+	eyeSphere = visEnv.visObj(room,'sphere',size=0.1,alpha=1)
+	eyeSphere.setMocapRigidBody(config.mocap,'shutter')
+	
+	eyeSphere.toggleUpdateWithRigid()
+	
+	env.attachViewToGlasses(eyeSphere.visNode,shutterRigid)
+	
+	markerNum = 0;
+		
+	vizact.onkeydown('1', env.setNewCornerPosition,0,markerNum)
+	vizact.onkeydown('2', env.setNewCornerPosition,1,markerNum)
+	vizact.onkeydown('3', env.setNewCornerPosition,2,markerNum)
+	vizact.onkeydown('4', env.setNewCornerPosition,3,markerNum)
+	
+	vizact.onkeydown('0', env.updatePowerwall)
+	
+	vizact.onkeydown('s', config.mocap.resetRigid, 'shutterGlass')
+	vizact.onkeydown('S', config.mocap.saveRigid, 'shutterGlass')	
+	
+				
+	wii = viz.add('wiimote.dle')#Add wiimote extension
+		
+	vizact.onsensorup(config.wiimote,wii.BUTTON_LEFT,env.setNewCornerPosition,0,markerNum)
+	vizact.onsensorup(config.wiimote,wii.BUTTON_UP,env.setNewCornerPosition,1,markerNum)
+	vizact.onsensorup(config.wiimote,wii.BUTTON_RIGHT,env.setNewCornerPosition,2,markerNum)
+	vizact.onsensorup(config.wiimote,wii.BUTTON_DOWN,env.setNewCornerPosition,3,markerNum)
+	vizact.onsensorup(config.wiimote,wii.BUTTON_PLUS,env.updatePowerwall)
+	
+	vizact.onsensorup(config.wiimote,wii.BUTTON_MINUS,viz.MainWindow.setStereoSwap,viz.TOGGLE)
+	
+	duckBeginPos =  env.getCenterPos()
+	duck = viz.addAvatar('duck.cfg',pos=duckBeginPos)
+	duck.scale([0.3,0.3,0.3])
+	eyeSphere.setMocapRigidBody(config.mocap,'shutter')
+	
+	viz.MainWindow.setStereoSwap(viz.TOGGLE)
