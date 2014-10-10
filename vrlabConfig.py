@@ -239,7 +239,9 @@ class VRLabConfig:
 		self.writables.append(self.mocap)
 		self.writables.append(self.bodyCam)
 		
-		if self.sysCfg['use_fullscreen']:
+		if self.sysCfg['use_virtualPlane']:
+			viz.go(viz.FULLSCREEN | viz.QUAD_BUFFER)
+		elif self.sysCfg['use_fullscreen']:
 			viz.go(viz.FULLSCREEN)
 		else:
 			viz.go()
