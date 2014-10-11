@@ -153,13 +153,11 @@ class room():
             self.standingBox.emissive([0,1,0])
             self.standingBox.alpha(0.5)
             
-            if( self.isLeftHanded ): self.standingBoxOffset_X *= -1;
-            
-            self.standingBox.setPosition(float(-self.standingBoxOffset_X),self.standingBoxSize_WHL[1]/2,.01)            
+            self.standingBox.setPosition(float(self.standingBoxOffset_X),self.standingBoxSize_WHL[1]/2,.01)            
 
-            self.standingBox.color(1,0,0,node='back')            
-            self.standingBox.emissive(1,0,0,node='back')
-            self.standingBox.alpha(0.7,node='back')
+            self.standingBox.color(1,0,0,node='right')            
+            self.standingBox.emissive(1,0,0,node='right')
+            self.standingBox.alpha(0.7,node='right')
 
             self.standingBox.setParent(self.objects)
             #self.standingBox.disable(viz.CULLING)
@@ -297,7 +295,8 @@ class visObj(viz.EventClass):
         print viz.getFrameNumber()
         
         # Remove physical component
-        self.physNode.remove()
+        if( self.physNode ):
+            self.physNode.remove()
         
         # Stop updating visNode
         if( self.updateAction ):

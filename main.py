@@ -13,7 +13,7 @@ import physEnv
 import ode
 import datetime
 from ctypes import * # eyetrackka
-
+import winsound
 
 expConfigFileName = 'exampleExpConfig.cfg'
 
@@ -29,18 +29,22 @@ nan = float('NaN')
 
 class soundBank():
 	def __init__(self):
+		 
+		################################################################
+		################################################################
 		
-		################################################################
-		################################################################
 		## Register sounds.  It makes sense to do it once per experiment.
+		self.bounce =  '/Resources/bounce.wav'
+		self.buzzer =  '/Resources/BUZZER.wav'
+		self.bubblePop =  '/Resources/bubblePop3.wav'
+		self.highDrip =  '/Resources/highdrip.wav'
+		self.cowbell =  '/Resources/cowbell.wav'
 		
-		self.bounce = viz.addAudio('/Resources/bounce.wav')
-		self.buzzer = viz.addAudio('/Resources/BUZZER.wav')
-		self.bubblePop = viz.addAudio('/Resources/bubblePop3.wav')
-		self.cowbell = viz.addAudio('/Resources/cowbell.wav')
-		self.highdrip = viz.addAudio('/Resources/highdrip.wav')
-		self.gong = viz.addAudio('/Resources/gong.wav')
-		#return soundBank
+		viz.playSound(self.bounce,viz.SOUND_PRELOAD)
+		viz.playSound(self.buzzer,viz.SOUND_PRELOAD)
+		viz.playSound(self.bubblePop,viz.SOUND_PRELOAD)
+		viz.playSound(self.highDrip,viz.SOUND_PRELOAD)
+		viz.playSound(self.cowbell,viz.SOUND_PRELOAD)
 
 soundBank = soundBank()
 
@@ -117,12 +121,14 @@ class Experiment(viz.EventClass):
 			self.registerWiimoteActions()
 		
 		# Setup launch trigger
-		#self.launchKeyIsCurrentlyDown = False
+
+		self.obstacleViewTimerID = viz.getEventID('obstacleViewTimerID') # Generates a unique ID. 
 		
-		#self.minLaunchTriggerDuration = config.expCfg['experiment']['minLaunchTriggerDuration']
+		self.numClicksBeforeGo = config.expCfg['experiment']['numClicksBeforeGo']
+		self.goSignalTimerID = viz.getEventID('goSignalTimerID') # Generates a unique ID. 
 		
-		# maxFlightDurTimerID times out balls a fixed dur after launch
-		#self.maxFlightDurTimerID = viz.getEventID('maxFlightDurTimerID') # Generates a unique ID. 
+		self.metronomeTimeMS = config.expCfg['experiment']['metronomeTimeMS']
+		self.metronomeTimerID = viz.getEventID('metronomeTimerID') # Generates a unique ID. 
 		
 		################################################################
 		##  LInk up the hmd to the mainview
@@ -134,17 +140,13 @@ class Experiment(viz.EventClass):
 			if( self.config.use_HMD and  config.mocap.returnPointerToRigid('hmd') ):
 				self.config.mocap.enableHMDTracking()
 						# If there is a paddle visObj and a paddle rigid...
-		
-		#self.setupPaddle()
-					
-			
+							
 		##############################################################
 		##############################################################
 		## Callbacks and timers
 		
 		vizact.onupdate(viz.PRIORITY_PHYSICS,self._checkForCollisions)
 		
-		#self.callback(viz.TIMER_EVENT, self.timer_event)
 		self.callback(viz.KEYDOWN_EVENT,  self.onKeyDown)
 		self.callback(viz.KEYUP_EVENT, self.onKeyUp)
 		self.callback( viz.TIMER_EVENT,self._timerCallback )
@@ -180,17 +182,89 @@ class Experiment(viz.EventClass):
 		self.eventFlag = eventFlag()
 		
 	def _timerCallback(self,timerID):
-		pass
 		
-#		if( timerID == self.maxFlightDurTimerID ):
-#			
-#			
-#			#print 'Ball timed out. Removing ball!'
-#			
-#			self.currentTrial.removeBall()
-#			self.room.standingBox.visible( viz.TOGGLE )
-#			self.endTrial()
 		
+		if( timerID == self.goSignalTimerID ):
+			self.currentTrial.goSignalGiven = True
+		
+		if( timerID == self.metronomeTimerID ):
+			if( self.currentTrial.goSignalGiven == False):
+				#soundBank.highdrip.play()
+				viz.playSound(soundBank.highDrip)
+			else:
+				viz.playSound(soundBank.bubblePop)
+				
+		######################################################################
+		## Is the head in the starting position?
+
+		if( self.currentTrial.approachingObs == False):
+			
+			self.currentTrial.headIsInBox = False
+			
+			mainViewPos_XYZ = viz.MainView.getPosition()
+			standingBoxOffsetX = self.config.expCfg['room']['standingBoxOffset_X']
+			standingBoxSize_WHL = self.config.expCfg['room']['standingBoxSize_WHL']
+			
+			# Is the head inside the standing box?
+			if( mainViewPos_XYZ[0] > (standingBoxOffsetX - standingBoxSize_WHL[0]/2) and 
+				mainViewPos_XYZ[0] < (standingBoxOffsetX + standingBoxSize_WHL[0]/2) and
+				mainViewPos_XYZ[2] > -standingBoxSize_WHL[2]/2 and
+				mainViewPos_XYZ[2] < standingBoxSize_WHL[2]/2):
+					
+					self.currentTrial.headIsInBox = True
+
+			######################################################################
+			## If head is in box, present obstacle and start metronome
+			
+			if( self.currentTrial.headIsInBox == True and self.currentTrial.waitingForGo == False):
+				# Begin lockout period
+				print 'Begin lockout period'
+				
+				# Yes, the head is inside the standing box
+				self.currentTrial.waitingForGo = True
+				# Present the obstacle
+				self.currentTrial.placeObs(self.room)
+				
+				# Start a metronome that continues for the duration of the trial
+				self.starttimer( self.metronomeTimerID, self.metronomeTimeMS/1000, viz.FOREVER)
+				
+				# Start the go signal timer
+				self.starttimer( self.goSignalTimerID, 1, (self.numClicksBeforeGo*self.metronomeTimeMS)/1000 )
+				
+				# The metronom will change pitch after the expiration of metronomeTimeMS
+				# if the subject tries to leave before the change in pitch, the obstacle will dissapear
+				# and timers will be reset
+			
+			elif( self.currentTrial.headIsInBox == False and self.currentTrial.waitingForGo == True ):
+			# Head was removed from box after viewing was initiated
+				print 'Left box'
+				
+				if( self.currentTrial.goSignalGiven == False ):
+					
+					#Subject left prematurely
+					print 'Premature!'
+					
+					viz.playSound(soundBank.cowbell)
+					# Remove box
+					self.currentTrial.waitingForGo = False
+					self.currentTrial.removeObs()
+					
+					# Kill the obstacleViewTimerID
+					viz.killtimer( self.obstacleViewTimerID )
+					viz.killtimer( self.metronomeTimerID )
+					
+				else:
+					
+					
+					print 'Beginning approach!'
+					viz.killtimer( self.metronomeTimerID )
+					
+					# Subject left after receiving go signal
+					# Start trial timer
+					self.currentTrial.waitingForGo == False
+					self.approachingObs = True
+					
+	
 	def _checkForCollisions(self):
 		
 		thePhysEnv = self.room.physEnv;
@@ -333,13 +407,6 @@ class Experiment(viz.EventClass):
 		"""
 		mocapSys = self.config.mocap;
 		
-		if( self.config.use_phasespace == True ):
-			hmdRigid = mocapSys.returnPointerToRigid('hmd')
-			paddleRigid = mocapSys.returnPointerToRigid('paddle')
-		else:
-			hmdRigid = []
-			paddleRigid = []
-		
 		##########################################################
 		##########################################################
 		## Keys used in the default mode
@@ -354,26 +421,23 @@ class Experiment(viz.EventClass):
 			
 			
 		if (self.inCalibrateMode is False):
-			
-			if key == 'M':
-				
-				# Toggle the link between the HMD and Mainview
-				if( mocapSys ):
-					if( mocapSys.mainViewUpdateAction ):
-						mocapSys.disableHMDTracking()
-					else:
-						mocapSys.enableHMDTracking()
-			elif key == 'h':
-				mocapSys.resetRigid('hmd')
-			elif key == 'H':
-				mocapSys.saveRigid('hmd')
-			elif key == 'W':
-				self.connectWiiMote()
-				
-			elif key == 'D':
+			if key == 'D':
 				
 				dvrWriter = self.config.writer;
 				dvrWriter.toggleOnOff()
+				
+#			if key == 'M':
+#				
+#				# Toggle the link between the HMD and Mainview
+#				if( mocapSys ):
+#					if( mocapSys.mainViewUpdateAction ):
+#						mocapSys.disableHMDTracking()
+#					else:
+#						mocapSys.enableHMDTracking()
+#			elif key == 'h':
+#				mocapSys.resetRigid('hmd')
+		
+			
 			
 					
 	
@@ -578,7 +642,11 @@ class Experiment(viz.EventClass):
 			print '************************************ DVR IS PAUSED ************************************'
 
 
-		
+	def startwaitingForGotacle(self):
+		pass
+
+	def stopwaitingForGotacle(self):
+		pass
 ############################################################################################################
 ############################################################################################################
 
@@ -660,6 +728,9 @@ class block():
 		# _tr indicates that the list is as long as the number of trials
 		self.trialTypeList_tr = []
 		
+		if( len(self.numOfEachTrialType_type)< len(self.trialTypesInBlock) ):
+			print 'trialTypeCountString < trialTypesString!  These should be the same length'
+			
 		for typeIdx in range(len(self.trialTypesInBlock)):
 			for count in range(self.numOfEachTrialType_type[typeIdx]):
 				self.trialTypeList_tr.append(self.trialTypesInBlock[typeIdx])
@@ -691,31 +762,31 @@ class trial(viz.EventClass):
 		
 		self.trialType = trialType
 
-#		## State flags
-#		self.ballInRoom = False; # Is ball in room?
-#		self.ballInInitialState = False; # Is ball ready for launch?
-#		self.ballLaunched = False; # Has a ball been launched?  Remains true after ball disappears.
-#		self.ballHasBouncedOnFloor = False;
-#		self.ballHasHitPaddle = False;
-		
-		
-		## Timer objects
-		#self.timeSinceLaunch = [];
-		
-		self.ballObj = -1;
-		
+		## State flags
+		self.headIsInBox = False
+		self.waitingForGo = False
+		self.goSignalGiven = False 		
+		self.approachingObs = False
+
+		# Object placeholders
+		self.obsObj = -1
 		
 		###########################################################################################
 		###########################################################################################
 		## Get fixed variables here
+			
+		try:
+			self.obsColor_RGB = map(float,config.expCfg['trialTypes'][self.trialType]['obsColor_RGB'])
+		except:
+			print 'Using def color'
+			self.obsColor_RGB = map(float,config.expCfg['trialTypes']['default']['obsColor_RGB'])
 		
-		#  Example: Set ball color.
-#		#try:
-#			self.ballColor_RGB = map(float,config.expCfg['trialTypes'][self.trialType]['ballColor_RGB'])
-#		except:
-#			print 'Using def color'
-#			self.ballColor_RGB = map(float,config.expCfg['trialTypes']['default']['ballColor_RGB'])
+		self.obsHeight = float(config.expCfg['trialTypes'][self.trialType]['obsHeight'])
 		
+		self.obsXLoc_distType = []
+		self.obsXLoc_distParams = []
+		self.obsXLoc = []
+				
 		# The rest of variables are set below, by drawing values from distributions
 #		
 #		Example: ballDiameter and gravity
@@ -726,7 +797,6 @@ class trial(viz.EventClass):
 #		self.gravity_distType = []
 #		self.gravity_distParams = []
 #		self.gravity = []
-		
 		
 		# Go into config file and draw variables from the specified distributions
 		# When a distribution is specified, select a value from the distribution
@@ -745,8 +815,6 @@ class trial(viz.EventClass):
 				# Draw value from a distribution
 				exec( 'self.' + varName + ' = drawNumberFromDist( distType , distParams);' )
 					
-	
-	 
 #	def removeBall(self):
 #		An example of how to remove an object from the room
 #		self.ballObj.remove()
@@ -777,7 +845,18 @@ class trial(viz.EventClass):
 		
 		return distType,distParams,value
 			
+	def placeObs(self,room):
+		
+		obsSize = [1,0.1,self.obsHeight]
+		self.obsObj = visEnv.visObj(room,'box',obsSize,[self.obsXLoc,self.obsHeight/2,0],self.obsColor_RGB)
+		#self.obsObj.visNode.setPosition(self.obsXLoc)
+		
+	def removeObs(self):
 
+		self.obsObj.remove()		
+		self.obsObj = -1
+		
+		
 #	def placeBall(self,room):
 #		# An example of how to place an object in the room
 #		
@@ -820,16 +899,36 @@ experimentConfiguration = vrlabConfig.VRLabConfig(expConfigFileName)
 
 ## The experiment class initialization draws the room, sets up physics, 
 ## and populates itself with a list of blocks.  Each block contains a list of trials
+
 experimentObject = Experiment(experimentConfiguration)
 experimentObject.start()
 
 # If you want to see spheres for each marker
 #visEnv.drawMarkerSpheres(experimentObject.room,experimentObject.config.mocap)
 
+#Add a world axis with X,Y,Z labels
+world_axes = vizshape.addAxes()
+X = viz.addText3D('X',pos=[1.1,0,0],color=viz.RED,scale=[0.3,0.3,0.3],parent=world_axes)
+Y = viz.addText3D('Y',pos=[0,1.1,0],color=viz.GREEN,scale=[0.3,0.3,0.3],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
+Z = viz.addText3D('Z',pos=[0,0,1.1],color=viz.BLUE,scale=[0.3,0.3,0.3],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
+
+
 if( experimentObject.hmdLinkedToView == False ):
 	
 	print 'Head controlled by mouse/keyboard. Initial viewpoint set in vrLabConfig _setupSystem()'
 	
-	viz.MainView.setPosition(-3,2,-3)
+	#viz.MainView.setPosition(-3,2,-3)
 	#viz.MainView.setPosition([experimentObject.room.wallPos_NegX +.1, 2, experimentObject.room.wallPos_NegZ +.1])
-	viz.MainView.lookAt([0,2,-2])
+	#viz.MainView.lookAt([0,2,-2])
+	# Setup keyboard/mouse tracker
+	import vizcam
+	
+	tracker = vizcam.addWalkNavigate(moveScale=1.0)
+	tracker.setPosition([3,1.8,0])
+	viz.link(tracker,viz.MainView)
+	viz.mouse.setVisible(False)
+	
+	
+
+	
+	
