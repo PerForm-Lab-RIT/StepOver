@@ -119,16 +119,12 @@ class Experiment(viz.EventClass):
 
 		if( config.wiimote ):
 			self.registerWiimoteActions()
-		
-		# Setup launch trigger
 
 		self.obstacleViewTimerID = viz.getEventID('obstacleViewTimerID') # Generates a unique ID. 
 		
 		self.numClicksBeforeGo = config.expCfg['experiment']['numClicksBeforeGo']
-		self.goSignalTimerID = viz.getEventID('goSignalTimerID') # Generates a unique ID. 
-		
+		self.trialEndPosition = config.expCfg['experiment']['trialEndPosition']
 		self.metronomeTimeMS = config.expCfg['experiment']['metronomeTimeMS']
-		self.metronomeTimerID = viz.getEventID('metronomeTimerID') # Generates a unique ID. 
 		
 		################################################################
 		##  LInk up the hmd to the mainview
@@ -151,7 +147,7 @@ class Experiment(viz.EventClass):
 		self.callback(viz.KEYUP_EVENT, self.onKeyUp)
 		self.callback( viz.TIMER_EVENT,self._timerCallback )
 		
-		self.perFrameTimerID = viz.getEventID('perFrameTimerID') # Generates a unique ID. 
+		self.perFrameTimerID = viz.getEventID('perFrameTimerID') # Generates a unique ID.
 		self.starttimer( self.perFrameTimerID, viz.FASTEST_EXPIRATION, viz.FOREVER)
 		
 		# DVR snaps a shot of the frame, records eye data, and contents of self.writables is written out to the movie
@@ -182,26 +178,18 @@ class Experiment(viz.EventClass):
 		self.eventFlag = eventFlag()
 		
 	def _timerCallback(self,timerID):
+
+		mainViewPos_XYZ = viz.MainView.getPosition()
 		
-		
-		if( timerID == self.goSignalTimerID ):
-			self.currentTrial.goSignalGiven = True
-		
-		if( timerID == self.metronomeTimerID ):
-			if( self.currentTrial.goSignalGiven == False):
-				#soundBank.highdrip.play()
-				viz.playSound(soundBank.highDrip)
-			else:
-				viz.playSound(soundBank.bubblePop)
-				
 		######################################################################
 		## Is the head in the starting position?
+		
+		if( self.currentTrial.approachingObs == True and
+			mainViewPos_XYZ[0] > self.trialEndPosition ):
+				self.endTrial()
+			
+		if( self.currentTrial.approachingObs == False ):
 
-		if( self.currentTrial.approachingObs == False):
-			
-			self.currentTrial.headIsInBox = False
-			
-			mainViewPos_XYZ = viz.MainView.getPosition()
 			standingBoxOffsetX = self.config.expCfg['room']['standingBoxOffset_X']
 			standingBoxSize_WHL = self.config.expCfg['room']['standingBoxSize_WHL']
 			
@@ -211,12 +199,17 @@ class Experiment(viz.EventClass):
 				mainViewPos_XYZ[2] > -standingBoxSize_WHL[2]/2 and
 				mainViewPos_XYZ[2] < standingBoxSize_WHL[2]/2):
 					
-					self.currentTrial.headIsInBox = True
+				self.currentTrial.headIsInBox = True
+			
+			else:
+				self.currentTrial.headIsInBox = False
 
 			######################################################################
 			## If head is in box, present obstacle and start metronome
 			
-			if( self.currentTrial.headIsInBox == True and self.currentTrial.waitingForGo == False):
+			if( self.currentTrial.headIsInBox is True and 
+				self.currentTrial.waitingForGo is False ):
+					
 				# Begin lockout period
 				print 'Begin lockout period'
 				
@@ -225,45 +218,38 @@ class Experiment(viz.EventClass):
 				# Present the obstacle
 				self.currentTrial.placeObs(self.room)
 				
-				# Start a metronome that continues for the duration of the trial
-				self.starttimer( self.metronomeTimerID, self.metronomeTimeMS/1000, viz.FOREVER)
+				if( type(self.currentTrial.metronomeTimerObj) is list ):
+					# Start a metronome that continues for the duration of the trial
+					self.currentTrial.metronomeTimerObj = vizact.ontimer2(self.metronomeTimeMS/1000, self.numClicksBeforeGo,self.metronomeLowTic)
 				
-				# Start the go signal timer
-				self.starttimer( self.goSignalTimerID, 1, (self.numClicksBeforeGo*self.metronomeTimeMS)/1000 )
+				timeUntilGoSignal = ((self.numClicksBeforeGo)*self.metronomeTimeMS)/1000
 				
-				# The metronom will change pitch after the expiration of metronomeTimeMS
-				# if the subject tries to leave before the change in pitch, the obstacle will dissapear
-				# and timers will be reset
-			
-			elif( self.currentTrial.headIsInBox == False and self.currentTrial.waitingForGo == True ):
-			# Head was removed from box after viewing was initiated
-				print 'Left box'
+				if( type(self.currentTrial.goSignalTimerObj) is list ):
+					# Start a metronome that continues for the duration of the trial
+					self.currentTrial.goSignalTimerObj = vizact.ontimer2(timeUntilGoSignal, 0,self.giveGoSignal)
 				
-				if( self.currentTrial.goSignalGiven == False ):
+			elif( self.currentTrial.headIsInBox is False and 
+				self.currentTrial.waitingForGo is True):
+				
+				if(self.currentTrial.goSignalGiven is False ):
+					  
+					# Head was removed from box after viewing was initiated
+					print 'Left box prematurely!'
 					
-					#Subject left prematurely
-					print 'Premature!'
-					
-					viz.playSound(soundBank.cowbell)
+					viz.playSound(soundBank.cowbell);
 					# Remove box
 					self.currentTrial.waitingForGo = False
-					self.currentTrial.removeObs()
+					self.currentTrial.removeObs();
 					
-					# Kill the obstacleViewTimerID
-					viz.killtimer( self.obstacleViewTimerID )
-					viz.killtimer( self.metronomeTimerID )
+					self.currentTrial.metronomeTimerObj.setEnabled(viz.TOGGLE);
+					self.currentTrial.metronomeTimerObj = [];
+				
+					self.currentTrial.goSignalTimerObj.setEnabled(viz.TOGGLE);
+					self.currentTrial.goSignalTimerObj = [];
 					
-				else:
-					
-					
-					print 'Beginning approach!'
-					viz.killtimer( self.metronomeTimerID )
-					
-					# Subject left after receiving go signal
-					# Start trial timer
-					self.currentTrial.waitingForGo == False
-					self.approachingObs = True
-					
+				elif(self.currentTrial.goSignalGiven is True):
+					print 'Starting trial'
+					self.currentTrial.approachingObs = True
 	
 	def _checkForCollisions(self):
 		
@@ -376,7 +362,9 @@ class Experiment(viz.EventClass):
 			self.config.mocap.disableHMDTracking()
 			
 		viz.mouse.setOverride(viz.TOGGLE)
-		self.config.eyeTrackingCal.toggleCalib()
+		
+		if( self.config.sysCfg['use_eyetracking'] ):
+			self.config.eyeTrackingCal.toggleCalib()
 		
 		self.inCalibrateMode = not self.inCalibrateMode
 		
@@ -411,7 +399,7 @@ class Experiment(viz.EventClass):
 		##########################################################
 		## Keys used in the default mode
 		
-		if 'c' == key: # and self.config.eyeTrackingCal != None: # eyeTrackingCal is the where the interace to the eyetracker calib lives
+		if( 'c' == key and self.config.sysCfg['use_eyetracking'] ):
 			self.toggleEyeCalib()
 			# a bit of a hack.  THe crossahair / calib ponit in viewpoint mapping is a bit off
 			# until you hit a key.  So, I'm doing that for you.
@@ -558,8 +546,19 @@ class Experiment(viz.EventClass):
 
 			# Increment trial 
 			self.trialNumber += 1
-			self.killtimer(self.maxFlightDurTimerID)
 			
+			## Play sound
+			viz.playSound(soundBank.cowbell)
+			## Remove obstacle
+			self.currentTrial.obsObj.remove()
+		
+			## Stop timers
+			if( type(self.currentTrial.metronomeTimerObj) is not list ):			
+				self.currentTrial.metronomeTimerObj.remove()
+			
+			if( type(self.currentTrial.goSignalTimerObj) is not list ):			
+				self.currentTrial.goSignalTimerObj.remove()
+				
 			self.eventFlag.setStatus(6)
 			
 		if( self.trialNumber == endOfTrialList ):
@@ -641,12 +640,39 @@ class Experiment(viz.EventClass):
 		if( dvrWriter.isPaused == 1 ):
 			print '************************************ DVR IS PAUSED ************************************'
 
-
-	def startwaitingForGotacle(self):
-		pass
-
-	def stopwaitingForGotacle(self):
-		pass
+		
+	def killTimer(self):
+		viz.killtimer(self.metronomeTimerID)
+	
+	def metronomeLowTic(self):
+		viz.playSound(soundBank.bubblePop)
+	
+	def metronomeHighTic(self):
+		viz.playSound(soundBank.highDrip)
+	
+	def giveGoSignal(self):
+		print 'Go signal given!'
+		self.currentTrial.goSignalGiven = True
+		
+		if( type(self.currentTrial.metronomeTimerObj) is not list ):			
+			self.currentTrial.metronomeTimerObj.remove()
+		
+		self.currentTrial.metronomeTimerObj = vizact.ontimer(self.metronomeTimeMS/1000,self.metronomeHighTic)
+		# Start data collection
+	
+		if( type(self.currentTrial.goSignalTimerObj) is not list ):			
+			self.currentTrial.goSignalTimerObj.remove()
+		
+#	def endTrial(self):
+#
+#		self.currentTrial.obsObj.remove()
+#		
+#		if( type(self.currentTrial.metronomeTimerObj) is not list ):			
+#			self.currentTrial.metronomeTimerObj.remove()
+#		
+#		if( type(self.currentTrial.goSignalTimerObj) is not list ):			
+#			self.currentTrial.goSignalTimerObj.remove()
+		
 ############################################################################################################
 ############################################################################################################
 
@@ -768,6 +794,9 @@ class trial(viz.EventClass):
 		self.goSignalGiven = False 		
 		self.approachingObs = False
 
+		self.goSignalTimerObj = []
+		self.metronomeTimerObj = []
+		
 		# Object placeholders
 		self.obsObj = -1
 		
@@ -848,8 +877,7 @@ class trial(viz.EventClass):
 	def placeObs(self,room):
 		
 		obsSize = [1,0.1,self.obsHeight]
-		self.obsObj = visEnv.visObj(room,'box',obsSize,[self.obsXLoc,self.obsHeight/2,0],self.obsColor_RGB)
-		#self.obsObj.visNode.setPosition(self.obsXLoc)
+		self.obsObj = visEnv.visObj(room,'box',obsSize,[self.obsXLoc,self.obsHeight/2, 0],self.obsColor_RGB)
 		
 	def removeObs(self):
 
@@ -896,7 +924,6 @@ experimentConfiguration = vrlabConfig.VRLabConfig(expConfigFileName)
 ## vrlabConfig uses config to setup hardware, motion tracking, frustum, eyeTrackingCal.
 ##  This draws upon the system config to setup the hardware / HMD
 
-
 ## The experiment class initialization draws the room, sets up physics, 
 ## and populates itself with a list of blocks.  Each block contains a list of trials
 
@@ -907,10 +934,10 @@ experimentObject.start()
 #visEnv.drawMarkerSpheres(experimentObject.room,experimentObject.config.mocap)
 
 #Add a world axis with X,Y,Z labels
-world_axes = vizshape.addAxes()
-X = viz.addText3D('X',pos=[1.1,0,0],color=viz.RED,scale=[0.3,0.3,0.3],parent=world_axes)
-Y = viz.addText3D('Y',pos=[0,1.1,0],color=viz.GREEN,scale=[0.3,0.3,0.3],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
-Z = viz.addText3D('Z',pos=[0,0,1.1],color=viz.BLUE,scale=[0.3,0.3,0.3],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
+world_axes = vizshape.addAxes(.3) 
+X = viz.addText3D('X',pos=[0.33,0,0],color=viz.RED,scale=[0.1,0.1,0.1],parent=world_axes)
+Y = viz.addText3D('Y',pos=[0,0.33,0],color=viz.GREEN,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
+Z = viz.addText3D('Z',pos=[0,0,0.33],color=viz.BLUE,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
 
 
 if( experimentObject.hmdLinkedToView == False ):
@@ -923,12 +950,14 @@ if( experimentObject.hmdLinkedToView == False ):
 	# Setup keyboard/mouse tracker
 	import vizcam
 	
-	tracker = vizcam.addWalkNavigate(moveScale=1.0)
-	tracker.setPosition([3,1.8,0])
+	tracker = vizcam.addKeyboard6DOF(moveScale=1.0)
+	tracker.setPosition([-3,.5,0])
+	tracker.lookAt([3,0.5,0])
+	
 	viz.link(tracker,viz.MainView)
 	viz.mouse.setVisible(False)
 	
-	
+	#vizact.onkeydown('k',experimentObject.killTimer)
 
 	
 	

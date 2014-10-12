@@ -155,9 +155,9 @@ class room():
             
             self.standingBox.setPosition(float(self.standingBoxOffset_X),self.standingBoxSize_WHL[1]/2,.01)            
 
-            self.standingBox.color(1,0,0,node='right')            
-            self.standingBox.emissive(1,0,0,node='right')
-            self.standingBox.alpha(0.7,node='right')
+            self.standingBox.color(1,0,0,node='left')            
+            self.standingBox.emissive(1,0,0,node='left')
+            self.standingBox.alpha(0.7,node='left')
 
             self.standingBox.setParent(self.objects)
             #self.standingBox.disable(viz.CULLING)
@@ -285,6 +285,7 @@ class visObj(viz.EventClass):
         self.setColor(self.color_3f)
         self.visNode.visible(True)
 
+        self.setPosition( self.position )
         ## Create physical object
         self.visNode.dynamic() # This command speeds up rendering, supposedly    
             
@@ -292,7 +293,7 @@ class visObj(viz.EventClass):
         
     def __del__(self):
         
-        print viz.getFrameNumber()
+        print 'Frame: ' + str(viz.getFrameNumber()) + 'Trying to remove object'
         
         # Remove physical component
         if( self.physNode ):
@@ -403,7 +404,9 @@ class visObj(viz.EventClass):
             
     def setPosition(self,position):
 
-        self.physNode.setPosition(position)
+        if(self.physNode):
+            self.physNode.setPosition(position)
+        
         self.visNode.setPosition(position)
         
     def setColor(self,color3f):

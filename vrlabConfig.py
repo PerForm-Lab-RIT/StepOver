@@ -246,7 +246,7 @@ class VRLabConfig:
 		else:
 			viz.go()
 		
-		self._setWinPriority(priority=5)
+		#self._setWinPriority(priority=5)
 		
 			
 	def start(self):
