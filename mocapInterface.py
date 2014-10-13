@@ -211,6 +211,10 @@ class rigidObject(viz.EventClass):
 		markerCount = 0;
 		center_GlobalXYZ = [0,0,0]
 		
+		if( len(self.avgMarkerList_midx) == 0 ):
+			print 'UPDATING WITH GLOBAL MEAN OF MARKER POSITIONS'
+			self.avgMarkerList_midx = range(0,len(self.markerID_midx)-1)
+			
 		for mIdx in range(len(self.avgMarkerList_midx)):
 			mNum = self.avgMarkerList_midx[mIdx]
 			center_GlobalXYZ[0] = center_GlobalXYZ[0] + newPos_midx_GlobalXYZ[mNum][0]
@@ -412,12 +416,10 @@ class phasespaceInterface(viz.EventClass):
 			else:
 				rigidOffsetMM_WorldXYZ = self.rigidOffsetMM_ridx_WorldXYZ[rigidIdx]
 			
-			if( len(self.rigidAvgMarkerList_rIdx_mId) < rigidIdx ):
-				print 'Average markers not provided! Using default (marker 0)'
-			else:
-				rigidAvgMarkerList_mId  = self.rigidAvgMarkerList_rIdx_mId[rigidIdx]
-			
-			
+#			if( len(self.rigidAvgMarkerList_rIdx_mId) < rigidIdx ):
+#				print 'Average markers not provided! Using default (marker 0)'
+#			else:
+			rigidAvgMarkerList_mId  = self.rigidAvgMarkerList_rIdx_mId[rigidIdx]
 			
 			self.allRigidBodyObjects.append( rigidObject(rigidIdx,self.phaseSpaceFilePath,self.rigidFileNames_ridx[rigidIdx],rigidAvgMarkerList_mId,rigidOffsetMM_WorldXYZ ))
 			

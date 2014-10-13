@@ -14,6 +14,7 @@ import ode
 import datetime
 from ctypes import * # eyetrackka
 import winsound
+import virtualPlane
 
 expConfigFileName = 'exampleExpConfig.cfg'
 
@@ -129,14 +130,31 @@ class Experiment(viz.EventClass):
 		################################################################
 		##  LInk up the hmd to the mainview
 		
-		if( self.config.use_phasespace == True ):
+		if( self.config.use_phasespace == True and self.config.use_HMD ):
 			
 			################################################################
 			##  Link up the hmd to the mainview
-			if( self.config.use_HMD and  config.mocap.returnPointerToRigid('hmd') ):
+			if( config.mocap.returnPointerToRigid('hmd') ):
 				self.config.mocap.enableHMDTracking()
-						# If there is a paddle visObj and a paddle rigid...
-							
+	
+		if( self.config.use_phasespace == True and self.config.sysCfg['virtualPlane']['attachGlassesToRigid']):
+		
+			#eyeSphere = visEnv.visObj(self.room,'sphere',size=0.1,alpha=1)
+			#eyeSphere.visNode.setParent(self.room.objects)
+			print 'Connecting mainview to eyesphere'
+			
+			eyeSphere = self.room.eyeSphere
+			
+			eyeSphere.setMocapRigidBody(config.mocap,'shutter')
+			eyeSphere.toggleUpdateWithRigid()
+			
+			shutterRigid = config.mocap.returnPointerToRigid('shutter')
+			self.config.virtualPlane.attachViewToGlasses(eyeSphere.visNode,shutterRigid)
+			
+			viz.MainWindow.setStereoSwap(viz.TOGGLE)
+			#self.room.floor.visNode.remove()
+			#self.room.floor = vizshape.addGrid()
+			
 		##############################################################
 		##############################################################
 		## Callbacks and timers
@@ -191,14 +209,16 @@ class Experiment(viz.EventClass):
 		if( self.currentTrial.approachingObs == False ):
 
 			standingBoxOffsetX = self.config.expCfg['room']['standingBoxOffset_X']
+			standingBoxOffsetZ = self.config.expCfg['room']['standingBoxOffset_Z']
 			standingBoxSize_WHL = self.config.expCfg['room']['standingBoxSize_WHL']
+			
 			
 			# Is the head inside the standing box?
 			if( mainViewPos_XYZ[0] > (standingBoxOffsetX - standingBoxSize_WHL[0]/2) and 
 				mainViewPos_XYZ[0] < (standingBoxOffsetX + standingBoxSize_WHL[0]/2) and
-				mainViewPos_XYZ[2] > -standingBoxSize_WHL[2]/2 and
-				mainViewPos_XYZ[2] < standingBoxSize_WHL[2]/2):
-					
+				mainViewPos_XYZ[2] > (standingBoxOffsetZ - standingBoxSize_WHL[2]/2) and 
+				mainViewPos_XYZ[2] < (standingBoxOffsetZ + standingBoxSize_WHL[2]/2)):
+				
 				self.currentTrial.headIsInBox = True
 			
 			else:
@@ -614,12 +634,23 @@ class Experiment(viz.EventClass):
 			
 			mocapSys = self.config.mocap;
 		
-			vizact.onsensorup(self.config.wiimote,wii.BUTTON_DOWN,mocapSys.resetRigid,'hmd') 
-			vizact.onsensorup(self.config.wiimote,wii.BUTTON_UP,mocapSys.saveRigid,'hmd') 
+			vizact.onsensorup(self.config.wiimote,wii.BUTTON_1,mocapSys.resetRigid,'shutter') 
 			
+			env = self.config.virtualPlane
+			markerNum  = self.config.sysCfg['virtualPlane']['recalibrateWithMarkerNum'] 
+			
+			vizact.onsensorup(self.config.wiimote,wii.BUTTON_LEFT,env.setNewCornerPosition,0,markerNum)
+			vizact.onsensorup(self.config.wiimote,wii.BUTTON_UP,env.setNewCornerPosition,1,markerNum)
+			vizact.onsensorup(self.config.wiimote,wii.BUTTON_RIGHT,env.setNewCornerPosition,2,markerNum)
+			vizact.onsensorup(self.config.wiimote,wii.BUTTON_DOWN,env.setNewCornerPosition,3,markerNum)
+			vizact.onsensorup(self.config.wiimote,wii.BUTTON_PLUS,env.updatePowerwall)
+			
+			vizact.onsensorup(self.config.wiimote,wii.BUTTON_MINUS,viz.MainWindow.setStereoSwap,viz.TOGGLE)
 			#vizact.onsensorup(self.config.wiimote,wii.BUTTON_LEFT,mocapSys.resetRigid,'paddle') 
 			#vizact.onsensorup(self.config.wiimote,wii.BUTTON_RIGHT,mocapSys.saveRigid,'paddle') 
-	
+
+		
+		
 	def endExperiment(self):
 		# If recording data, I recommend ending the experiment using:
 		#vizact.ontimer2(.2,0,self.endExperiment)
@@ -640,9 +671,6 @@ class Experiment(viz.EventClass):
 		if( dvrWriter.isPaused == 1 ):
 			print '************************************ DVR IS PAUSED ************************************'
 
-		
-	def killTimer(self):
-		viz.killtimer(self.metronomeTimerID)
 	
 	def metronomeLowTic(self):
 		viz.playSound(soundBank.bubblePop)
@@ -815,6 +843,8 @@ class trial(viz.EventClass):
 		self.obsXLoc_distType = []
 		self.obsXLoc_distParams = []
 		self.obsXLoc = []
+		
+		self.obsZLoc = config.expCfg['room']['standingBoxOffset_Z']
 				
 		# The rest of variables are set below, by drawing values from distributions
 #		
@@ -877,7 +907,10 @@ class trial(viz.EventClass):
 	def placeObs(self,room):
 		
 		obsSize = [1,0.1,self.obsHeight]
-		self.obsObj = visEnv.visObj(room,'box',obsSize,[self.obsXLoc,self.obsHeight/2, 0],self.obsColor_RGB)
+		obsLoc = [self.obsXLoc,self.obsHeight/2,self.obsZLoc]
+		print 'Creating object at ' + str(obsLoc)
+		self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
+		
 		
 	def removeObs(self):
 
@@ -942,22 +975,25 @@ Z = viz.addText3D('Z',pos=[0,0,0.33],color=viz.BLUE,scale=[0.1,0.1,0.1],align=vi
 
 if( experimentObject.hmdLinkedToView == False ):
 	
-	print 'Head controlled by mouse/keyboard. Initial viewpoint set in vrLabConfig _setupSystem()'
+	#print 'Head controlled by mouse/keyboard. Initial viewpoint set in vrLabConfig _setupSystem()'
 	
 	#viz.MainView.setPosition(-3,2,-3)
 	#viz.MainView.setPosition([experimentObject.room.wallPos_NegX +.1, 2, experimentObject.room.wallPos_NegZ +.1])
 	#viz.MainView.lookAt([0,2,-2])
 	# Setup keyboard/mouse tracker
+	
 	import vizcam
 	
-	tracker = vizcam.addKeyboard6DOF(moveScale=1.0)
-	tracker.setPosition([-3,.5,0])
-	tracker.lookAt([3,0.5,0])
+	#tracker = vizcam.addKeyboard6DOF(moveScale=1.0)
+	#tracker.setPosition([-3,.5,0])
+	#tracker.lookAt([3,0.5,0])
 	
-	viz.link(tracker,viz.MainView)
-	viz.mouse.setVisible(False)
-	
-	#vizact.onkeydown('k',experimentObject.killTimer)
+	#viz.link(tracker,viz.MainView)
+	#viz.mouse.setVisible(False)
 
+#	duckBeginPos =  experimentObject.config.virtualPlane.getCenterPos('floor')
+#	duck = viz.addAvatar('duck.cfg',pos=duckBeginPos)
+#	duck.scale([0.5,0.5,0.5])
+	
 	
 	

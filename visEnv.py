@@ -65,6 +65,8 @@ class room():
             
             if( self.drawStandingBox  ):
                 self.standingBoxOffset_X = config.expCfg['room']['standingBoxOffset_X']
+                self.standingBoxOffset_Z = config.expCfg['room']['standingBoxOffset_Z']
+                
                 self.standingBoxSize_WHL = map(float, config.expCfg['room']['standingBoxSize_WHL'])
             
             self.shiftWorldRelToUser_XYZ = [0,0,0]
@@ -153,7 +155,7 @@ class room():
             self.standingBox.emissive([0,1,0])
             self.standingBox.alpha(0.5)
             
-            self.standingBox.setPosition(float(self.standingBoxOffset_X),self.standingBoxSize_WHL[1]/2,.01)            
+            self.standingBox.setPosition(float(self.standingBoxOffset_X),self.standingBoxSize_WHL[1]/2, float(self.standingBoxOffset_Z ))          
 
             self.standingBox.color(1,0,0,node='left')            
             self.standingBox.emissive(1,0,0,node='left')

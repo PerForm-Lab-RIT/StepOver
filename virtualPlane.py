@@ -24,7 +24,7 @@ import viztracker
 TODO: try threading for population of the buffer!!
 """
 
-class virtualFloor():
+class virtualPlane():
 	
 	"""
 	Initializes the Environment. Requires .cave file that contains the four corners of the powerwall.
@@ -41,7 +41,6 @@ class virtualFloor():
 		
 		self.cornerCoordinates_cIdx = [[0,0,0]] * 4
 
-		1
 		#The powerwall, see vizard docs for info on powerwall
 		self.powerwall = None
 		
@@ -85,24 +84,17 @@ class virtualFloor():
 	def updatePowerwall(self):
 		
 		if( self.cave == None):
-			print 'APPLE'
 			self.cave = vizcave.Cave()
 		else:
-			print 'banana'
 			self.cave.removeWall(self.powerwall)
 			self.cave.clear()
-		
-#		self.powerwall = vizcave.Wall(  upperLeft = [-1,0,1],
-#						upperRight = [1,0,1],
-#						lowerRight = [1,0,-1],
-#						lowerLeft = [-1,0,-1],
-#						name = self.planeName )
+	
 
 		self.powerwall = vizcave.Wall(  upperLeft = self.cornerCoordinates_cIdx[0],
 								upperRight = self.cornerCoordinates_cIdx[1],
 								lowerRight = self.cornerCoordinates_cIdx[2],
 								lowerLeft = self.cornerCoordinates_cIdx[3],
-								name = self.planeName )
+								name = self.planeName)
 								
 		print "Updating powerwall to reflect new corner positions"
 		
@@ -171,7 +163,10 @@ class virtualFloor():
 		walls_wIdx = self.cave.getWalls()
 		
 		for wIdx in range(len(walls_wIdx)):
-			if( walls_wIdx[wIdx]._name == planeName):
+			# NOTE:  I have to do some strange formatting, b/c vizcave is returning an ugly string
+			# To see what I mean, debug here, and check out: walls_wIdx[wIdx]._name
+			wallName = str(walls_wIdx[wIdx]._name).lower()
+			if( wallName  == planeName.lower()):
 				center_XYZ = walls_wIdx[0].getCenter()
 		
 		return center_XYZ
@@ -183,7 +178,7 @@ if __name__ == "__main__":
 	config = vrlabConfig.VRLabConfig(expConfigName)
 	
 	#def __init__(self, config=None, planeName = 'floor', isAFloor = 1, caveCornersFileName = None, debug = True):
-	env = virtualFloor(caveCornersFileName = 'caveWallDimensions.cave',config=config,planeName = 'floor', isAFloor = 1)
+	env = virtualPlane(caveCornersFileName = 'caveWallDimensions.cave',config=config,planeName = 'floor', isAFloor = 1)
 
 	import visEnv
 	#def __init__(self,room,shape,size,position=[0,.25,-3],color=[.5,0,0],alpha = 1):

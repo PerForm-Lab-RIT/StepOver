@@ -20,6 +20,7 @@ from configobj import ConfigObj
 from configobj import flatten_errors
 from validate import Validator
 import vizact
+import virtualPlane
 
 class VRLabConfig:
 	"""
@@ -151,9 +152,7 @@ class VRLabConfig:
 				expCfg.merge(curCfg)
 		
 		self.expCfg = expCfg
-		
-		
-		
+	
 	def __setupSystem(self):
 		
 		# Set up the wiimote
@@ -172,7 +171,6 @@ class VRLabConfig:
 		else:
 			self.hmd = HMD(self.sysCfg['hmd'], False)
 			self.use_HMD = False
-		
 		
 		viz.window.setFullscreenMonitor(self.sysCfg['displays'])
 		
@@ -223,19 +221,15 @@ class VRLabConfig:
 		else:
 			self.use_phasespace = False
 		
-		if self.sysCfg['use_hiball']:
-			from HiBallCameraMT import HiBallCamera
-			#self.mocap = HiBallCamera(self.sysCfg['hiball']['origin'], self.sysCfg['hiball']['scale'], None, None, self.sysCfg, None);
-			self.mocap = HiBallCamera(self.sysCfg['hiball']['origin'], particle=None, sensorNum=self.sysCfg['hiball']['headCam'], attachTo=viz.MainView, preTrans = self.sysCfg['hiball']['preTransHead'])
-			if self.sysCfg['hiball']['bodyCam'] != -1:
-				self.bodyCam = HiBallCamera(self.sysCfg['hiball']['origin'], particle=None, sensorNum=self.sysCfg['hiball']['bodyCam'], attachTo=None, preTrans = self.sysCfg['hiball']['preTransBody'])
-			else:
-				self.bodyCam = None
-			self.use_hiball = True
-		else:
-			self.use_hiball = False
-		
+		if self.sysCfg['use_virtualPlane']:
 
+			isAFloor = self.sysCfg['virtualPlane']['isAFloor']
+			planeName = self.sysCfg['virtualPlane']['planeName']
+			planeCornerFile = self.sysCfg['virtualPlane']['planeCornerFile']
+			self.virtualPlane = virtualPlane.virtualPlane(self,planeName,isAFloor,planeCornerFile)
+		
+	
+			
 		self.writables.append(self.mocap)
 		self.writables.append(self.bodyCam)
 		
