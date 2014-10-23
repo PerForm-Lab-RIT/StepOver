@@ -15,6 +15,7 @@ import datetime
 from ctypes import * # eyetrackka
 import winsound
 import virtualPlane
+import vizinput
 
 expConfigFileName = 'exampleExpConfig.cfg'
 
@@ -118,6 +119,11 @@ class Experiment(viz.EventClass):
 #		################################################################
 #		##  Misc. Design specific items here.
 
+		# Initially, set to config value of leg length
+		config.legLengthCM = config.expCfg['experiment']['legLengthCM']
+		# Update to reflect actual leg length of user
+		self.inputLegLength()
+		
 		if( config.wiimote ):
 			self.registerWiimoteActions()
 
@@ -147,6 +153,8 @@ class Experiment(viz.EventClass):
 			
 			eyeSphere.setMocapRigidBody(config.mocap,'shutter')
 			eyeSphere.toggleUpdateWithRigid()
+
+			eyeSphere.visNode.visible(viz.TOGGLE)
 			
 			shutterRigid = config.mocap.returnPointerToRigid('shutter')
 			self.config.virtualPlane.attachViewToGlasses(eyeSphere.visNode,shutterRigid)
@@ -426,7 +434,9 @@ class Experiment(viz.EventClass):
 			
 			self.config.eyeTrackingCal.updateOffset('s')
 			self.config.eyeTrackingCal.updateOffset('w')
-			
+		
+		elif( 'l' == key):
+			self.inputLegLength()
 			
 		if (self.inCalibrateMode is False):
 			if key == 'D':
@@ -690,20 +700,19 @@ class Experiment(viz.EventClass):
 	
 		if( type(self.currentTrial.goSignalTimerObj) is not list ):			
 			self.currentTrial.goSignalTimerObj.remove()
+	
+	def inputLegLength(self):
 		
-#	def endTrial(self):
-#
-#		self.currentTrial.obsObj.remove()
-#		
-#		if( type(self.currentTrial.metronomeTimerObj) is not list ):			
-#			self.currentTrial.metronomeTimerObj.remove()
-#		
-#		if( type(self.currentTrial.goSignalTimerObj) is not list ):			
-#			self.currentTrial.goSignalTimerObj.remove()
-		
-############################################################################################################
-############################################################################################################
 
+		#prompt for a string
+		self.config.obsHeightLegRatio = vizinput.input('Enter leg length (cm):', value = float(90))
+		
+		try:
+			intValue = int(self.config.obsHeightLegRatio)
+		except ValueError:
+			viz.message( 'Please enter a valid integer')
+			self.inputLegLength()
+			
 class eventFlag(viz.EventClass):
 	
 	def __init__(self):
@@ -821,9 +830,13 @@ class trial(viz.EventClass):
 		self.waitingForGo = False
 		self.goSignalGiven = False 		
 		self.approachingObs = False
-
+		
 		self.goSignalTimerObj = []
 		self.metronomeTimerObj = []
+
+		self.legLengthCM = config.expCfg['experiment']['legLengthCM']
+		self.obsHeightM = []
+		
 		
 		# Object placeholders
 		self.obsObj = -1
@@ -838,7 +851,7 @@ class trial(viz.EventClass):
 			print 'Using def color'
 			self.obsColor_RGB = map(float,config.expCfg['trialTypes']['default']['obsColor_RGB'])
 		
-		self.obsHeight = float(config.expCfg['trialTypes'][self.trialType]['obsHeight'])
+		self.obsHeightLegRatio = float(config.expCfg['trialTypes'][self.trialType]['obsHeightLegRatio'])
 		
 		self.obsXLoc_distType = []
 		self.obsXLoc_distParams = []
@@ -906,8 +919,10 @@ class trial(viz.EventClass):
 			
 	def placeObs(self,room):
 		
-		obsSize = [1,0.1,self.obsHeight]
-		obsLoc = [self.obsXLoc,self.obsHeight/2,self.obsZLoc]
+		self.obsHeightM = self.legLengthCM * self.obsHeightLegRatio / 100
+	
+		obsSize = [1,0.1,self.obsHeightM]
+		obsLoc = [self.obsXLoc,self.obsHeightM/2,self.obsZLoc]
 		print 'Creating object at ' + str(obsLoc)
 		self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
 		
@@ -917,33 +932,30 @@ class trial(viz.EventClass):
 		self.obsObj.remove()		
 		self.obsObj = -1
 		
-		
-#	def placeBall(self,room):
-#		# An example of how to place an object in the room
-#		
-#		print self.initialPos_XYZ
-#		
-#		self.ballObj = visEnv.visObj(room,'sphere',self.ballDiameter/2,self.initialPos_XYZ,self.ballColor_RGB)
-#
-#		self.ballObj.toggleUpdateWithPhys()
-#		self.ballObj.setVelocity([0,0,0])
-#		
-#		
-#		#print 'BALL ELASTICITY:' + str(self.ballElasticity)
-#		self.ballObj.physNode.setBounciness(self.ballElasticity)
-#		self.ballObj.physNode.disableMovement() # Makes it stand in place
-#
-#		# Costly, in terms of computation
-#		#self.ballObj.projectShadows(self.ballObj.parentRoom.floor.visNode)
-#		
-#		# Register it as something that will stick to the paddle
-#		self.ballObj.physNode.setStickUponContact( room.paddle.physNode.geom )
-#		
-#		self.ballInRoom = True
-#		self.ballInInitialState = True
-#		self.ballLaunched = False 
-#		self.ballPlacedOnThisFrame = True
-		
+	
+def demoMode(experimentObject):
+	
+#	duckBeginPos =  experimentObject.config.virtualPlane.getCenterPos('floor')
+#	duck = viz.addAvatar('duck.cfg',pos=duckBeginPos)
+#	duck.scale([0.5,0.5,0.5])
+	
+	##Add a world axis with X,Y,Z labels
+	world_axes = vizshape.addAxes(.3) 
+	X = viz.addText3D('X',pos=[0.33,0,0],color=viz.RED,scale=[0.1,0.1,0.1],parent=world_axes)
+	Y = viz.addText3D('Y',pos=[0,0.33,0],color=viz.GREEN,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
+	Z = viz.addText3D('Z',pos=[0,0,0.33],color=viz.BLUE,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
+	
+	experimentObject.room.standingBox.remove()
+	experimentObject.room.floor.visNode.remove()
+	
+	viz.killtimer(experimentObject.perFrameTimerID)
+	
+	vizshape.addGrid()
+	
+#	global piazza
+#	piazza = viz.add('piazza.osgb')
+#	piazza.setScale([.15,.15,.15])
+#	piazza.setPosition([0,0,-2.5])
 	
 	
 ################################################################################################################   
@@ -963,15 +975,10 @@ experimentConfiguration = vrlabConfig.VRLabConfig(expConfigFileName)
 experimentObject = Experiment(experimentConfiguration)
 experimentObject.start()
 
+#demoMode(experimentObject)
+
 # If you want to see spheres for each marker
 #visEnv.drawMarkerSpheres(experimentObject.room,experimentObject.config.mocap)
-
-#Add a world axis with X,Y,Z labels
-world_axes = vizshape.addAxes(.3) 
-X = viz.addText3D('X',pos=[0.33,0,0],color=viz.RED,scale=[0.1,0.1,0.1],parent=world_axes)
-Y = viz.addText3D('Y',pos=[0,0.33,0],color=viz.GREEN,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
-Z = viz.addText3D('Z',pos=[0,0,0.33],color=viz.BLUE,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
-
 
 if( experimentObject.hmdLinkedToView == False ):
 	
@@ -990,10 +997,8 @@ if( experimentObject.hmdLinkedToView == False ):
 	
 	#viz.link(tracker,viz.MainView)
 	#viz.mouse.setVisible(False)
-
-#	duckBeginPos =  experimentObject.config.virtualPlane.getCenterPos('floor')
-#	duck = viz.addAvatar('duck.cfg',pos=duckBeginPos)
-#	duck.scale([0.5,0.5,0.5])
 	
+	
+
 	
 	
