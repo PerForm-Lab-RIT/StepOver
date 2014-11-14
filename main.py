@@ -150,14 +150,20 @@ class Experiment(viz.EventClass):
 			print 'Connecting mainview to eyesphere'
 			
 			eyeSphere = self.room.eyeSphere
-			
 			eyeSphere.setMocapRigidBody(config.mocap,'shutter')
 			eyeSphere.toggleUpdateWithRigid()
-
 			eyeSphere.visNode.visible(viz.TOGGLE)
 			
 			shutterRigid = config.mocap.returnPointerToRigid('shutter')
 			self.config.virtualPlane.attachViewToGlasses(eyeSphere.visNode,shutterRigid)
+			
+#			leftFoot = self.room.leftFoot
+#			leftFoot.setMocapRigidBody(config.mocap,'leftFoot')
+#			leftFoot.toggleUpdateWithRigid()
+#			
+#			rightFoot = self.room.rightFoot
+#			rightFoot.setMocapRigidBody(config.mocap,'rightFoot')
+#			rightFoot.toggleUpdateWithRigid()
 			
 			viz.MainWindow.setStereoSwap(viz.TOGGLE)
 			#self.room.floor.visNode.remove()
@@ -423,9 +429,9 @@ class Experiment(viz.EventClass):
 		"""
 		mocapSys = self.config.mocap;
 		
+		###################R#######################################
 		##########################################################
-		##########################################################
-		## Keys used in the default mode
+		## Keys used in the defauRRlt mode
 		
 		if( 'c' == key and self.config.sysCfg['use_eyetracking'] ):
 			self.toggleEyeCalib()
@@ -435,13 +441,13 @@ class Experiment(viz.EventClass):
 			self.config.eyeTrackingCal.updateOffset('s')
 			self.config.eyeTrackingCal.updateOffset('w')
 		
-		elif( 'l' == key):
-			self.inputLegLength()
-			
+#		elif( 'l' == key):
+#			self.inputLegLength()
+#			
 		if (self.inCalibrateMode is False):
 			if key == 'D':
 				
-				dvrWriter = self.config.writer;
+				dvrWriter = self.config.wRRriter;
 				dvrWriter.toggleOnOff()
 				
 #			if key == 'M':
@@ -452,9 +458,23 @@ class Experiment(viz.EventClass):
 #						mocapSys.disableHMDTracking()
 #					else:
 #						mocapSys.enableHMDTracking()
-#			elif key == 'h':
-#				mocapSys.resetRigid('hmd')
-		
+			
+			elif key == 'S':
+				mocapSys.resetRigid('shutter')
+			elif key == 'L':
+				mocapSys.resetRigid('left')
+			elif key == 'R':
+				mocapSys.resetRigid('right')
+					
+			if( viz.key.isDown( viz.KEY_CONTROL_L )):
+				
+				if key == 's':
+					mocapSys.resetRigid('shutter')
+				elif key == 'l':
+					mocapSys.resetRigid('left')
+				elif key == 'r':
+					mocapSys.resetRigid('right')
+			
 			
 			
 					
@@ -702,16 +722,18 @@ class Experiment(viz.EventClass):
 			self.currentTrial.goSignalTimerObj.remove()
 	
 	def inputLegLength(self):
-		
-
-		#prompt for a string
-		self.config.obsHeightLegRatio = vizinput.input('Enter leg length (cm):', value = float(90))
-		
-		try:
-			intValue = int(self.config.obsHeightLegRatio)
-		except ValueError:
-			viz.message( 'Please enter a valid integer')
-			self.inputLegLength()
+		print('SETTING LEG LENGTH TO 100!')
+		self.config.obsHeightLegRatio = 100
+#
+#		#prompt for a string
+#		self.config.obsHeightLegRatio = vizinput.input('Enter leg length (cm):', value = float(90))
+#		
+#		try:
+#           # Test if it's an integer
+#			intValue = int(self.config.obsHeightLegRatio)
+#		except ValueError:
+#			viz.message( 'Please enter a valid integer')
+#			self.inputLegLength()
 			
 class eventFlag(viz.EventClass):
 	
@@ -940,22 +962,22 @@ def demoMode(experimentObject):
 #	duck.scale([0.5,0.5,0.5])
 	
 	##Add a world axis with X,Y,Z labels
-	world_axes = vizshape.addAxes(.3) 
-	X = viz.addText3D('X',pos=[0.33,0,0],color=viz.RED,scale=[0.1,0.1,0.1],parent=world_axes)
-	Y = viz.addText3D('Y',pos=[0,0.33,0],color=viz.GREEN,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
-	Z = viz.addText3D('Z',pos=[0,0,0.33],color=viz.BLUE,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
+#	world_axes = vizshape.addAxes(.3) 
+#	X = viz.addText3D('X',pos=[0.33,0,0],color=viz.RED,scale=[0.1,0.1,0.1],parent=world_axes)
+#	Y = viz.addText3D('Y',pos=[0,0.33,0],color=viz.GREEN,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
+#	Z = viz.addText3D('Z',pos=[0,0,0.33],color=viz.BLUE,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
 	
 	experimentObject.room.standingBox.remove()
 	experimentObject.room.floor.visNode.remove()
 	
 	viz.killtimer(experimentObject.perFrameTimerID)
 	
-	vizshape.addGrid()
+	#vizshape.addGrid()
 	
-#	global piazza
-#	piazza = viz.add('piazza.osgb')
-#	piazza.setScale([.15,.15,.15])
-#	piazza.setPosition([0,0,-2.5])
+	global piazza
+	piazza = viz.add('piazza.osgb')
+	piazza.setScale([.15,.15,.15])
+	piazza.setPosition([0,0,-2.5])
 	
 	
 ################################################################################################################   
@@ -978,7 +1000,7 @@ experimentObject.start()
 #demoMode(experimentObject)
 
 # If you want to see spheres for each marker
-#visEnv.drawMarkerSpheres(experimentObject.room,experimentObject.config.mocap)
+visEnv.drawMarkerSpheres(experimentObject.room,experimentObject.config.mocap)
 
 if( experimentObject.hmdLinkedToView == False ):
 	
