@@ -787,17 +787,23 @@ class phasespaceInterface(viz.EventClass):
 	def psPosToVizPos(self,posPS_XYZ):
 		
 		# FLip Z axis and rotate basis CCW 90 degs
+				# Set rigid body transformation matrix
+		pos_XYZ = [  -posPS_XYZ[2]*self.scale[2] + self.origin[2],
+		posPS_XYZ[1]*self.scale[1] + self.origin[1],
+		-posPS_XYZ[0]*self.scale[0] + self.origin[0] ];
 		
-		# Set rigid body transformation matrix
-		pos_XYZ = [  posPS_XYZ[0]*self.scale[0] + self.origin[0],
-		 posPS_XYZ[1]*self.scale[1] + self.origin[1],
-		-posPS_XYZ[2]*self.scale[2] + self.origin[2] ];
+		#print str(self.origin[0]) + str(self.origin[1])+ str(self.origin[2])
 		
-		transformViz = viz.Transform()
-		transformViz.postTrans(pos_XYZ)
-		transformViz.postAxisAngle(0,1,0,90)
+#		# Set rigid body transformation matrix
+#		pos_XYZ = [  posPS_XYZ[0]*self.scale[0] + self.origin[0],
+#		 posPS_XYZ[1]*self.scale[1] + self.origin[1],
+#		-posPS_XYZ[2]*self.scale[2] + self.origin[2] ];
+#		
+#		transformViz = viz.Transform()
+#		transformViz.postTrans(pos_XYZ)
+#		transformViz.postAxisAngle(0,1,0,90)
 		
-		return transformViz.getPosition()
+		return pos_XYZ#transformViz.getPosition()
 
 if __name__ == "__main__":
 	

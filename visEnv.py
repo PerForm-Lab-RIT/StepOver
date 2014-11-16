@@ -547,7 +547,11 @@ class visObj(viz.EventClass):
             
             if( pos_XYZ ):
                 self.visNode.visible(viz.ON)
-                pos_XYZ = [pos_XYZ[0], pos_XYZ[1], pos_XYZ[2]]
+                
+                # FIXME: SET HEIGHT OF MARKER TO 0
+                #pos_XYZ = [pos_XYZ[0], pos_XYZ[1], pos_XYZ[2]]
+                pos_XYZ = [pos_XYZ[0], 0, pos_XYZ[2]]
+                
                 #print 'Marker pos: ' + str(pos)
                 self.visNode.setPosition(pos_XYZ)
             else:
@@ -627,7 +631,9 @@ def drawMarkerSpheres(room,mocap):
      ##  Create mocap marker spheres - 1 per LED
     markerVisObjList_idx = []
     
-    for idx in range(0,29):
+    numMarkers = len(mocap.markerServerID_mIdx)
+    
+    for idx in range(0,numMarkers):
             
             print 'visEnv.mocapMarkerSphere: Drawing marker ' + str(idx)
             markerVisObjList_idx.append(mocapMarkerSphere(mocap,room,idx))

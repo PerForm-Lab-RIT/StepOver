@@ -41,7 +41,9 @@ class soundBank():
 		self.bubblePop =  '/Resources/bubblePop3.wav'
 		self.highDrip =  '/Resources/highdrip.wav'
 		self.cowbell =  '/Resources/cowbell.wav'
+		self.beep =  '/Resources/beep.wav'
 		
+		viz.playSound(self.beep,viz.SOUND_PRELOAD)
 		viz.playSound(self.bounce,viz.SOUND_PRELOAD)
 		viz.playSound(self.buzzer,viz.SOUND_PRELOAD)
 		viz.playSound(self.bubblePop,viz.SOUND_PRELOAD)
@@ -118,9 +120,10 @@ class Experiment(viz.EventClass):
 #		################################################################
 #		################################################################
 #		##  Misc. Design specific items here.
-
+		self.maxTrialDuration = config.expCfg['experiment']['maxTrialDuration']
 		# Initially, set to config value of leg length
 		config.legLengthCM = config.expCfg['experiment']['legLengthCM']
+		
 		# Update to reflect actual leg length of user
 		self.inputLegLength()
 		
@@ -147,6 +150,7 @@ class Experiment(viz.EventClass):
 		
 			#eyeSphere = visEnv.visObj(self.room,'sphere',size=0.1,alpha=1)
 			#eyeSphere.visNode.setParent(self.room.objects)
+			
 			print 'Connecting mainview to eyesphere'
 			
 			eyeSphere = self.room.eyeSphere
@@ -157,13 +161,13 @@ class Experiment(viz.EventClass):
 			shutterRigid = config.mocap.returnPointerToRigid('shutter')
 			self.config.virtualPlane.attachViewToGlasses(eyeSphere.visNode,shutterRigid)
 			
-#			leftFoot = self.room.leftFoot
-#			leftFoot.setMocapRigidBody(config.mocap,'leftFoot')
-#			leftFoot.toggleUpdateWithRigid()
-#			
-#			rightFoot = self.room.rightFoot
-#			rightFoot.setMocapRigidBody(config.mocap,'rightFoot')
-#			rightFoot.toggleUpdateWithRigid()
+			leftFoot = self.room.leftFoot
+			leftFoot.setMocapRigidBody(config.mocap,'leftFoot')
+			leftFoot.toggleUpdateWithRigid()
+			
+			rightFoot = self.room.rightFoot
+			rightFoot.setMocapRigidBody(config.mocap,'rightFoot')
+			rightFoot.toggleUpdateWithRigid()
 			
 			viz.MainWindow.setStereoSwap(viz.TOGGLE)
 			#self.room.floor.visNode.remove()
@@ -181,6 +185,8 @@ class Experiment(viz.EventClass):
 		
 		self.perFrameTimerID = viz.getEventID('perFrameTimerID') # Generates a unique ID.
 		self.starttimer( self.perFrameTimerID, viz.FASTEST_EXPIRATION, viz.FOREVER)
+		
+		self.trialTimeoutTimerID = viz.getEventID('trialTimeoutTimerID') # Generates a unique ID.
 		
 		# DVR snaps a shot of the frame, records eye data, and contents of self.writables is written out to the movie
 		self.callback(viz.POST_SWAP_EVENT, self.config.__record_data__, viz.PRIORITY_LAST_UPDATE)
@@ -213,58 +219,56 @@ class Experiment(viz.EventClass):
 
 		mainViewPos_XYZ = viz.MainView.getPosition()
 		
-		######################################################################
-		## Is the head in the starting position?
-		
+		## This is all the per-frame timer stuff
 		if( self.currentTrial.approachingObs == True and
 			mainViewPos_XYZ[0] > self.trialEndPosition ):
-				self.endTrial()
+			print 'Passed distance threshold.  Ending trial'
+			self.endTrial()
+				
+		######################################################################
+		## Are the feet in the starting position?
 			
 		if( self.currentTrial.approachingObs == False ):
-
-			standingBoxOffsetX = self.config.expCfg['room']['standingBoxOffset_X']
-			standingBoxOffsetZ = self.config.expCfg['room']['standingBoxOffset_Z']
-			standingBoxSize_WHL = self.config.expCfg['room']['standingBoxSize_WHL']
 			
-			
-			# Is the head inside the standing box?
-			if( mainViewPos_XYZ[0] > (standingBoxOffsetX - standingBoxSize_WHL[0]/2) and 
-				mainViewPos_XYZ[0] < (standingBoxOffsetX + standingBoxSize_WHL[0]/2) and
-				mainViewPos_XYZ[2] > (standingBoxOffsetZ - standingBoxSize_WHL[2]/2) and 
-				mainViewPos_XYZ[2] < (standingBoxOffsetZ + standingBoxSize_WHL[2]/2)):
-				
-				self.currentTrial.headIsInBox = True
+			if( self.isVisObjInBox(self.room.leftFoot) and self.isVisObjInBox(self.room.rightFoot) ):
+				self.currentTrial.subIsInBox = True
 			
 			else:
-				self.currentTrial.headIsInBox = False
+				self.currentTrial.subIsInBox = False
 
 			######################################################################
-			## If head is in box, present obstacle and start metronome
+			## If foot is in box, present obstacle and start metronome
 			
-			if( self.currentTrial.headIsInBox is True and 
+			if( self.currentTrial.subIsInBox is True and 
 				self.currentTrial.waitingForGo is False ):
 					
 				# Begin lockout period
-				print 'Begin lockout period'
+				print 'Subject is ready and waiting in the box. Present the obstacle.'
 				
 				# Yes, the head is inside the standing box
 				self.currentTrial.waitingForGo = True
 				# Present the obstacle
 				self.currentTrial.placeObs(self.room)
 				
-				if( type(self.currentTrial.metronomeTimerObj) is list ):
+				# Metronome has been deactivated
+				#if( type(self.currentTrial.metronomeTimerObj) is list ):
 					# Start a metronome that continues for the duration of the trial
-					self.currentTrial.metronomeTimerObj = vizact.ontimer2(self.metronomeTimeMS/1000, self.numClicksBeforeGo,self.metronomeLowTic)
+					#self.currentTrial.metronomeTimerObj = vizact.ontimer2(self.metronomeTimeMS/1000, self.numClicksBeforeGo,self.metronomeLowTic)
 				
 				timeUntilGoSignal = ((self.numClicksBeforeGo)*self.metronomeTimeMS)/1000
 				
+				# Start the go signal timer
 				if( type(self.currentTrial.goSignalTimerObj) is list ):
 					# Start a metronome that continues for the duration of the trial
 					self.currentTrial.goSignalTimerObj = vizact.ontimer2(timeUntilGoSignal, 0,self.giveGoSignal)
-				
-			elif( self.currentTrial.headIsInBox is False and 
+
+			########################################################################
+			## Subject has just left the box
+			elif( self.currentTrial.subIsInBox is False and 
 				self.currentTrial.waitingForGo is True):
 				
+				########################################
+				### Subject left before go signal was given!
 				if(self.currentTrial.goSignalGiven is False ):
 					  
 					# Head was removed from box after viewing was initiated
@@ -275,16 +279,31 @@ class Experiment(viz.EventClass):
 					self.currentTrial.waitingForGo = False
 					self.currentTrial.removeObs();
 					
-					self.currentTrial.metronomeTimerObj.setEnabled(viz.TOGGLE);
-					self.currentTrial.metronomeTimerObj = [];
+					#self.currentTrial.metronomeTimerObj.setEnabled(viz.TOGGLE);
+					#self.currentTrial.metronomeTimerObj = [];
 				
 					self.currentTrial.goSignalTimerObj.setEnabled(viz.TOGGLE);
 					self.currentTrial.goSignalTimerObj = [];
-					
+				
+				##############################################
+				### Go signal already given.  Starting the trial
 				elif(self.currentTrial.goSignalGiven is True):
+					
 					print 'Starting trial'
 					self.currentTrial.approachingObs = True
+					
+					# Start data collection
+					viz.playSound(soundBank.bubblePop)
+					
+					if( type(self.currentTrial.goSignalTimerObj) is not list ):			
+						self.currentTrial.goSignalTimerObj.remove()
 	
+					vizact.ontimer2(self.maxTrialDuration, 0,self.endTrial)
+					
+										
+					#self.maxTrialDurationObj
+					#self.trialTimeoutTimerID
+				
 	def _checkForCollisions(self):
 		
 		thePhysEnv = self.room.physEnv;
@@ -469,16 +488,12 @@ class Experiment(viz.EventClass):
 			if( viz.key.isDown( viz.KEY_CONTROL_L )):
 				
 				if key == 's':
-					mocapSys.resetRigid('shutter')
+					mocapSys.saveRigid('shutter')
 				elif key == 'l':
-					mocapSys.resetRigid('left')
+					mocapSys.saveRigid('left')
 				elif key == 'r':
-					mocapSys.resetRigid('right')
+					mocapSys.saveRigid('right')
 			
-			
-			
-					
-	
 		##########################################################
 		##########################################################
 		## Eye-tracker calibration mode
@@ -582,6 +597,7 @@ class Experiment(viz.EventClass):
 		
 	def endTrial(self):
 		
+		print 'Ending trial'
 		endOfTrialList = len(self.blocks_bl[self.blockNumber].trials_tr)
 		
 		#print 'Ending block: ' + str(self.blockNumber) + 'trial: ' + str(self.trialNumber)
@@ -714,13 +730,11 @@ class Experiment(viz.EventClass):
 		
 		if( type(self.currentTrial.metronomeTimerObj) is not list ):			
 			self.currentTrial.metronomeTimerObj.remove()
+
+		viz.playSound(soundBank.beep)
 		
-		self.currentTrial.metronomeTimerObj = vizact.ontimer(self.metronomeTimeMS/1000,self.metronomeHighTic)
-		# Start data collection
-	
-		if( type(self.currentTrial.goSignalTimerObj) is not list ):			
-			self.currentTrial.goSignalTimerObj.remove()
-	
+		#self.currentTrial.metronomeTimerObj = vizact.ontimer(self.metronomeTimeMS/1000,self.metronomeHighTic)
+		
 	def inputLegLength(self):
 		print('SETTING LEG LENGTH TO 100!')
 		self.config.obsHeightLegRatio = 100
@@ -734,7 +748,26 @@ class Experiment(viz.EventClass):
 #		except ValueError:
 #			viz.message( 'Please enter a valid integer')
 #			self.inputLegLength()
+	
+	def isVisObjInBox(self,vizObj):
+		
+		pos_xyz = vizObj.visNode.getPosition()
+
+		standingBoxOffsetX = self.config.expCfg['room']['standingBoxOffset_X']
+		standingBoxOffsetZ = self.config.expCfg['room']['standingBoxOffset_Z']
+		standingBoxSize_WHL = self.config.expCfg['room']['standingBoxSize_WHL']
 			
+			
+		# Is the head inside the standing box?
+		if( pos_xyz[0] > (standingBoxOffsetX - standingBoxSize_WHL[0]/2) and 
+			pos_xyz[0] < (standingBoxOffsetX + standingBoxSize_WHL[0]/2) and
+			pos_xyz[2] > (standingBoxOffsetZ - standingBoxSize_WHL[2]/2) and 
+			pos_xyz[2] < (standingBoxOffsetZ + standingBoxSize_WHL[2]/2)):
+		
+			return 1
+		else:
+			return 0
+		
 class eventFlag(viz.EventClass):
 	
 	def __init__(self):
@@ -848,14 +881,15 @@ class trial(viz.EventClass):
 		self.trialType = trialType
 
 		## State flags
-		self.headIsInBox = False
+		self.subIsInBox = False
 		self.waitingForGo = False
 		self.goSignalGiven = False 		
 		self.approachingObs = False
 		
 		self.goSignalTimerObj = []
 		self.metronomeTimerObj = []
-
+		self.trialTimeoutTimerObj = []
+		
 		self.legLengthCM = config.expCfg['experiment']['legLengthCM']
 		self.obsHeightM = []
 		
@@ -977,7 +1011,7 @@ def demoMode(experimentObject):
 	global piazza
 	piazza = viz.add('piazza.osgb')
 	piazza.setScale([.15,.15,.15])
-	piazza.setPosition([0,0,-2.5])
+	piazza.setPosition([0,0,-3])
 	
 	
 ################################################################################################################   
@@ -996,12 +1030,16 @@ experimentConfiguration = vrlabConfig.VRLabConfig(expConfigFileName)
 
 experimentObject = Experiment(experimentConfiguration)
 experimentObject.start()
-
+#
 #demoMode(experimentObject)
+#grid = vizshape.addGrid()
+#grid.scale([0.25,0.25,0.25])
 
 # If you want to see spheres for each marker
 visEnv.drawMarkerSpheres(experimentObject.room,experimentObject.config.mocap)
 
+
+vizshape.addBox(size=(0.05,0.05,0.05))
 if( experimentObject.hmdLinkedToView == False ):
 	
 	#print 'Head controlled by mouse/keyboard. Initial viewpoint set in vrLabConfig _setupSystem()'
