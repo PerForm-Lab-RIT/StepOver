@@ -151,27 +151,7 @@ class Experiment(viz.EventClass):
 			#eyeSphere = visEnv.visObj(self.room,'sphere',size=0.1,alpha=1)
 			#eyeSphere.visNode.setParent(self.room.objects)
 			
-			print 'Connecting mainview to eyesphere'
-			
-			eyeSphere = self.room.eyeSphere
-			eyeSphere.setMocapRigidBody(config.mocap,'shutter')
-			eyeSphere.toggleUpdateWithRigid()
-			eyeSphere.visNode.visible(viz.TOGGLE)
-			
-			shutterRigid = config.mocap.returnPointerToRigid('shutter')
-			self.config.virtualPlane.attachViewToGlasses(eyeSphere.visNode,shutterRigid)
-			
-			leftFoot = self.room.leftFoot
-			leftFoot.setMocapRigidBody(config.mocap,'leftFoot')
-			leftFoot.toggleUpdateWithRigid()
-			
-			rightFoot = self.room.rightFoot
-			rightFoot.setMocapRigidBody(config.mocap,'rightFoot')
-			rightFoot.toggleUpdateWithRigid()
-			
-			viz.MainWindow.setStereoSwap(viz.TOGGLE)
-			#self.room.floor.visNode.remove()
-			#self.room.floor = vizshape.addGrid()
+			self.setupEyesAndFeet()
 			
 		##############################################################
 		##############################################################
@@ -767,6 +747,32 @@ class Experiment(viz.EventClass):
 			return 1
 		else:
 			return 0
+			
+	def setupEyesAndFeet(self):
+
+		config = self.config
+		print 'Connecting mainview to eyesphere'
+
+		viz.MainWindow.setStereoSwap(viz.TOGGLE)
+		
+		eyeSphere = self.room.eyeSphere
+		eyeSphere.setMocapRigidBody(config.mocap,'shutter')
+		eyeSphere.toggleUpdateWithRigid()
+		eyeSphere.visNode.visible(viz.TOGGLE)
+		
+		shutterRigid = config.mocap.returnPointerToRigid('shutter')
+		self.config.virtualPlane.attachViewToGlasses(eyeSphere.visNode,shutterRigid)
+		
+		leftFoot = self.room.leftFoot
+		leftFoot.setMocapRigidBody(config.mocap,'leftFoot')
+		leftFoot.toggleUpdateWithRigid()
+		
+		rightFoot = self.room.rightFoot
+		rightFoot.setMocapRigidBody(config.mocap,'rightFoot')
+		rightFoot.toggleUpdateWithRigid()
+		
+		#vizproximity.Sensor(leftFoot.visNode,source)
+		#manager = vizproximity.Manager()
 		
 class eventFlag(viz.EventClass):
 	
