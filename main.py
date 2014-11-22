@@ -108,7 +108,7 @@ class Experiment(viz.EventClass):
 		
 		self.blockNumber = 0;
 		self.trialNumber = 0;
-		self.inProgress = True;
+		self.expInProgress = True;
 		
 		self.blocks_bl = []
 		
@@ -171,22 +171,33 @@ class Experiment(viz.EventClass):
 		# DVR snaps a shot of the frame, records eye data, and contents of self.writables is written out to the movie
 		self.callback(viz.POST_SWAP_EVENT, self.config.__record_data__, viz.PRIORITY_LAST_UPDATE)
 	
-		# Use text output!
-		if( config.sysCfg['use_DVR'] >0):
-			
-			vizact.ontimer(3,self.checkDVRStatus)
-			
-			now = datetime.datetime.now()
-			dateTimeStr = str(now.year) + '-' + str(now.month) + '-' + str(now.day) + '-' + str(now.hour) + '-' + str(now.minute)
-			
-			dataOutPutDir = config.sysCfg['writer']['outFileDir']
-			
-			self.expDataFile = open(dataOutPutDir + 'exp_data-' + dateTimeStr + '.txt','a')
-			
-			if( self.config.sysCfg['use_eyetracking']):
-				self.eyeDataFile = open(dataOutPutDir + 'eye_data-' + dateTimeStr + '.txt','a')
-			
-			vizact.onupdate(viz.PRIORITY_LAST_UPDATE,self.writeDataToText)
+		
+		# Use text output
+		now = datetime.datetime.now()
+		dateTimeStr = str(now.year) + '-' + str(now.month) + '-' + str(now.day) + '-' + str(now.hour) + '-' + str(now.minute)
+		
+		dataOutPutDir = config.sysCfg['writer']['outFileDir']
+		
+		self.expDataFile = open(dataOutPutDir + 'exp_data-' + dateTimeStr + '.txt','w+')
+		vizact.onupdate(viz.PRIORITY_LAST_UPDATE,self.writeDataToText)
+
+# TODO: Double check if this is needed for future or not (Kamran)
+#		# Use text output!
+#		if( config.sysCfg['use_DVR'] > 0 ):
+#			
+#			vizact.ontimer(3,self.checkDVRStatus)
+#			
+#			now = datetime.datetime.now()
+#			dateTimeStr = str(now.year) + '-' + str(now.month) + '-' + str(now.day) + '-' + str(now.hour) + '-' + str(now.minute)
+#			
+#			dataOutPutDir = config.sysCfg['writer']['outFileDir']
+#			
+#			self.expDataFile = open(dataOutPutDir + 'exp_data-' + dateTimeStr + '.txt','a')
+#			
+#			if( self.config.sysCfg['use_eyetracking']):
+#				self.eyeDataFile = open(dataOutPutDir + 'eye_data-' + dateTimeStr + '.txt','a')
+#			
+#			vizact.onupdate(viz.PRIORITY_LAST_UPDATE,self.writeDataToText)
 		
 		# Create an event flag object
 		# This var is set to an int on every frame
@@ -426,6 +437,11 @@ class Experiment(viz.EventClass):
 		"""
 		Interactive commands can be given via the keyboard. Some are provided here. You'll likely want to add more.
 		"""
+		if key == 'm':
+			print 'Data Recording Starts \n'
+			self.expInProgress = True;
+			
+		
 		mocapSys = self.config.mocap;
 		
 		###################R#######################################
@@ -520,17 +536,61 @@ class Experiment(viz.EventClass):
 		# 4 ball has hit paddle
 		# 5 ball has hit back wall
 		# 6 ball has timed out
-				
-		outputString = '* frameTime %f * ' % (viz.getFrameTime())
 		
-		outputString = outputString + '* inCalibrateBool %f * ' % (self.inCalibrateMode)
+
+		## =======================================================================================================
+		## FrameTime, Event Flag, Trial Type 
+		## =======================================================================================================				
+		outputString = '* frameTime %f * ' % (viz.getFrameTime())
 		outputString = outputString + '* eventFlag %f * ' % (self.eventFlag.status)
 		outputString = outputString + '* trialType %s * ' % (self.currentTrial.trialType)
 		
+		## =======================================================================================================
+		## ViewPos 
+		## =======================================================================================================				
 		viewPos_XYZ = viz.MainView.getPosition()
 		outputString = outputString + '[ viewPos_XYZ %f %f %f ] ' % (viewPos_XYZ[0],viewPos_XYZ[1],viewPos_XYZ[2])
-	
-	
+		
+		## =======================================================================================================
+		## Left and Right Foot Position
+		## =======================================================================================================
+		rightFootPos_XYZ = []
+		rightFootQUAT_XYZW = []
+		leftFootPos_XYZ = []
+		leftFootQUAT_XYZW = []
+
+		# TODO: We can calculate each foot Velocity here. (Instead of doing it later offline)
+		#rightFootVel_XYZ = []
+		#leftFootVel_XYZ = []
+		
+		if( self.room.rightFoot ):
+			
+			rightFootPos_XYZ = self.room.rightFoot.visNode.getPosition()
+			rightFootMat = self.room.rightFoot.visNode.getMatrix()
+			rightFootQUAT_XYZW = rightFootMat.getQuat()
+			
+		else:
+			rightFootPos_XYZ = [None, None, None]
+			rightFootQUAT_XYZW = [None, None, None]
+			
+		outputString = outputString + '[ RightFoot_XYZ %f %f %f ] ' % (rightFootPos_XYZ[0], rightFootPos_XYZ[1], rightFootPos_XYZ[2])
+		
+		outputString = outputString + '< RightFootQUAT_WXYZ %f %f %f %f > ' % ( rightFootQUAT_XYZW[0], rightFootQUAT_XYZW[1], rightFootQUAT_XYZW[2], rightFootQUAT_XYZW[3] )
+		
+		if( self.room.rightFoot ):
+			
+			leftFootPos_XYZ = self.room.leftFoot.visNode.getPosition()
+			leftFootMat = self.room.leftFoot.visNode.getMatrix()
+			leftFootQUAT_XYZW = leftFootMat.getQuat()
+			
+		else:
+			leftFootPos_XYZ = [None, None, None]
+			leftFootQUAT_XYZW = [None, None, None]
+			
+		outputString = outputString + '[ LeftFoot_XYZ %f %f %f ] ' % (leftFootPos_XYZ[0], leftFootPos_XYZ[1], leftFootPos_XYZ[2])
+		
+		outputString = outputString + '< LeftFootQUAT_WXYZ %f %f %f %f > ' % ( leftFootQUAT_XYZW[0], leftFootQUAT_XYZW[1], leftFootQUAT_XYZW[2], leftFootQUAT_XYZW[3] )
+		
 		return outputString #%f %d' % (viz.getFrameTime(), self.inCalibrateMode)
 		
 	def getEyeData(self):
@@ -577,8 +637,8 @@ class Experiment(viz.EventClass):
 		
 	def endTrial(self):
 		
-		print 'Ending trial'
 		endOfTrialList = len(self.blocks_bl[self.blockNumber].trials_tr)
+		
 		
 		#print 'Ending block: ' + str(self.blockNumber) + 'trial: ' + str(self.trialNumber)
 		
@@ -596,7 +656,7 @@ class Experiment(viz.EventClass):
 			## Play sound
 			viz.playSound(soundBank.cowbell)
 			## Remove obstacle
-			self.currentTrial.obsObj.remove()
+			self.currentTrial.removeObs()
 		
 			## Stop timers
 			if( type(self.currentTrial.metronomeTimerObj) is not list ):			
@@ -617,25 +677,32 @@ class Experiment(viz.EventClass):
 			self.blockNumber += 1
 			self.trialNumber = 0
 			
-			# Increment block or end experiment
+			# End experiment
 			if( self.blockNumber == len(self.blocks_bl) ):
 				
 				# Run this once on the next frame
 				# This maintains the ability to record one frame of data
 				vizact.ontimer2(0,0,self.endExperiment)
+				
 				return
 				
-		if( self.inProgress ):
+		if( self.expInProgress ):
 				
 			print 'Starting block: ' + str(self.blockNumber) + ' Trial: ' + str(self.trialNumber)
 			self.currentTrial = self.blocks_bl[self.blockNumber].trials_tr[self.trialNumber]
-	
-	def writeDataToText(self):
 		
+#		if (self.trialNumber > 2):
+#			self.expDataFile.flush()
+#			self.expDataFile.close()
+#			print 'Dummy End of Trial & Block ==> TxT file Saved & Closed'
+			
+	def writeDataToText(self):
+
 		# Only write data is the experiment is ongoing
-		if( self.inProgress is False ):
+		if( (self.currentTrial.approachingObs is False) ): # self.expInProgress is False) or (
 			return
 			
+		
 		now = datetime.datetime.now()
 		dateTimeStr = str(now.hour) + ':' + str(now.minute) + ':' + str(now.second) + ':' + str(now.microsecond)
 		
@@ -685,8 +752,12 @@ class Experiment(viz.EventClass):
 		# ...because the eventflag for the last trial would never be recorded
 		
 		#end experiment
+		# TODO: Make sure this is the correct place to close and flush the Text File
+		self.expDataFile.flush()
+		self.expDataFile.close()
+		print 'End of Trial & Block ==> TxT file Saved & Closed'
 		print 'end experiment'
-		self.inProgress = False
+		self.expInProgress = False
 		soundBank.gong.play()
 			
 	
@@ -891,7 +962,7 @@ class trial(viz.EventClass):
 		self.waitingForGo = False
 		self.goSignalGiven = False 		
 		self.approachingObs = False
-		
+		self.objIsVirtual = int(config.expCfg['trialTypes'][self.trialType]['objIsVirtual'])
 		self.goSignalTimerObj = []
 		self.metronomeTimerObj = []
 		self.trialTimeoutTimerObj = []
@@ -902,6 +973,7 @@ class trial(viz.EventClass):
 		
 		# Object placeholders
 		self.obsObj = -1
+		self.objectSizeText = -1
 		
 		###########################################################################################
 		###########################################################################################
@@ -981,16 +1053,41 @@ class trial(viz.EventClass):
 			
 	def placeObs(self,room):
 		
-		self.obsHeightM = self.legLengthCM * self.obsHeightLegRatio / 100
-	
-		obsSize = [1,0.1,self.obsHeightM]
-		obsLoc = [self.obsXLoc,self.obsHeightM/2,self.obsZLoc]
-		print 'Creating object at ' + str(obsLoc)
-		self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
 		
+		#print 'Creating object at ' + str(obsLoc)
 		
+		if( self.objIsVirtual == True ):
+			
+			self.obsHeightM = self.legLengthCM * self.obsHeightLegRatio / 100
+			obsSize = [1,0.1,self.obsHeightM] # lwh
+			obsLoc = [self.obsXLoc,self.obsHeightM/2,self.obsZLoc]
+		
+			self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
+		else:
+			
+			if( self.trialType == 't4' ):
+				displayText = 'Short'
+			elif( self.trialType == 't5' ):
+				displayText = 'Med'
+			elif( self.trialType == 't6' ):
+				displayText = 'Tall'
+				
+			self.obsHeightM = 0.001
+			obsSize = [1,0.01,self.obsHeightM] # lwh
+			obsLoc = [self.obsXLoc,self.obsHeightM/2,self.obsZLoc]
+
+			self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
+
+			self.objectSizeText = viz.addText3D(displayText)
+			self.objectSizeText.setEuler([-90,90,0],viz.ABS_GLOBAL)
+			self.objectSizeText.setPosition([-1.2,.001,-0.6],viz.ABS_GLOBAL)
+			scale = 0.1
+			self.objectSizeText.setScale([scale ,scale ,scale ])
+			
 	def removeObs(self):
 
+		if( self.trialType == 't4' or self.trialType == 't5'  or self.trialType == 't6' ):
+			self.objectSizeText.remove()
 		self.obsObj.remove()		
 		self.obsObj = -1
 		
@@ -1066,5 +1163,6 @@ if( experimentObject.hmdLinkedToView == False ):
 	
 	
 
+	
 	
 	
