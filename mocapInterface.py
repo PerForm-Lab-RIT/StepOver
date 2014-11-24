@@ -540,7 +540,7 @@ class phasespaceInterface(viz.EventClass):
 				else:
 					# print 'Bad condition'
 					return 0
-				
+
 	def checkForRigid(self,fileName):
 		return( self.returnPointerToRigid(fileName) )
 		

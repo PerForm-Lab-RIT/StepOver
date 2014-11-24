@@ -42,7 +42,9 @@ class soundBank():
 		self.highDrip =  '/Resources/highdrip.wav'
 		self.cowbell =  '/Resources/cowbell.wav'
 		self.beep =  '/Resources/beep.wav'
+		self.gong = '/Resources/gong.wav'
 		
+		viz.playSound(self.gong,viz.SOUND_PRELOAD)
 		viz.playSound(self.beep,viz.SOUND_PRELOAD)
 		viz.playSound(self.bounce,viz.SOUND_PRELOAD)
 		viz.playSound(self.buzzer,viz.SOUND_PRELOAD)
@@ -54,7 +56,7 @@ soundBank = soundBank()
 
 class Experiment(viz.EventClass):
 	
-	"""
+	"""7
 	Experiment manages the basic operation of the experiment.
 	"""
 	
@@ -74,6 +76,9 @@ class Experiment(viz.EventClass):
 		##  This draws upon the system config to setup the hardware / HMD
 		
 		self.config = config 
+		
+		# Update to reflect actual leg length of user
+		self.inputLegLength()
 
 		# Eventually, self.config.writables is passed to DVRwriter
 		# self.config.writables is a list
@@ -124,8 +129,7 @@ class Experiment(viz.EventClass):
 		# Initially, set to config value of leg length
 		config.legLengthCM = config.expCfg['experiment']['legLengthCM']
 		
-		# Update to reflect actual leg length of user
-		self.inputLegLength()
+		
 		
 		if( config.wiimote ):
 			self.registerWiimoteActions()
@@ -179,7 +183,7 @@ class Experiment(viz.EventClass):
 		dataOutPutDir = config.sysCfg['writer']['outFileDir']
 		
 		self.expDataFile = open(dataOutPutDir + 'exp_data-' + dateTimeStr + '.txt','w+')
-		vizact.onupdate(viz.PRIORITY_LAST_UPDATE,self.writeDataToText)
+		self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE,self.writeDataToText)
 
 # TODO: Double check if this is needed for future or not (Kamran)
 #		# Use text output!
@@ -234,7 +238,7 @@ class Experiment(viz.EventClass):
 				self.currentTrial.waitingForGo is False ):
 					
 				# Begin lockout period
-				print 'Subject is ready and waiting in the box. Present the obstacle.'
+				#print 'Subject is ready and waiting in the box. Present the obstacle.'
 				
 				# Yes, the head is inside the standing box
 				self.currentTrial.waitingForGo = True
@@ -263,9 +267,10 @@ class Experiment(viz.EventClass):
 				if(self.currentTrial.goSignalGiven is False ):
 					  
 					# Head was removed from box after viewing was initiated
-					print 'Left box prematurely!'
+					#print 'Left box prematurely!'
 					
 					viz.playSound(soundBank.cowbell);
+					
 					# Remove box
 					self.currentTrial.waitingForGo = False
 					self.currentTrial.removeObs();
@@ -280,7 +285,7 @@ class Experiment(viz.EventClass):
 				### Go signal already given.  Starting the trial
 				elif(self.currentTrial.goSignalGiven is True):
 					
-					print 'Starting trial'
+					#print 'Starting trial'
 					self.currentTrial.approachingObs = True
 					
 					# Start data collection
@@ -664,7 +669,10 @@ class Experiment(viz.EventClass):
 			
 			if( type(self.currentTrial.goSignalTimerObj) is not list ):			
 				self.currentTrial.goSignalTimerObj.remove()
-				
+			
+			if( type(self.currentTrial.trialTimeoutTimerObj) is not list ):			
+				self.currentTrial.trialTimeoutTimerObj.remove()
+			
 			self.eventFlag.setStatus(6)
 			
 		if( self.trialNumber == endOfTrialList ):
@@ -683,7 +691,6 @@ class Experiment(viz.EventClass):
 				# Run this once on the next frame
 				# This maintains the ability to record one frame of data
 				vizact.ontimer2(0,0,self.endExperiment)
-				
 				return
 				
 		if( self.expInProgress ):
@@ -701,18 +708,20 @@ class Experiment(viz.EventClass):
 		# Only write data is the experiment is ongoing
 		if( (self.currentTrial.approachingObs is False) ): # self.expInProgress is False) or (
 			return
+		
+		try:
+			now = datetime.datetime.now()
+			dateTimeStr = str(now.hour) + ':' + str(now.minute) + ':' + str(now.second) + ':' + str(now.microsecond)
 			
-		
-		now = datetime.datetime.now()
-		dateTimeStr = str(now.hour) + ':' + str(now.minute) + ':' + str(now.second) + ':' + str(now.microsecond)
-		
-		expDataString = self.getOutput()
-		self.expDataFile.write(expDataString + '\n')
-		
-		if( self.config.sysCfg['use_eyetracking']):
+			expDataString = self.getOutput()
+			self.expDataFile.write(expDataString + '\n')
 			
-			eyeDataString = self.getEyeData()
-			self.eyeDataFile.write(eyeDataString + '\n')
+			if( self.config.sysCfg['use_eyetracking']):
+				
+				eyeDataString = self.getEyeData()
+				self.eyeDataFile.write(eyeDataString + '\n')
+		except:
+			a=1
 		
 		# Eyetracker data
 	
@@ -758,7 +767,7 @@ class Experiment(viz.EventClass):
 		print 'End of Trial & Block ==> TxT file Saved & Closed'
 		print 'end experiment'
 		self.expInProgress = False
-		soundBank.gong.play()
+		viz.playSound(soundBank.gong)
 			
 	
 	def checkDVRStatus(self):
@@ -787,18 +796,18 @@ class Experiment(viz.EventClass):
 		#self.currentTrial.metronomeTimerObj = vizact.ontimer(self.metronomeTimeMS/1000,self.metronomeHighTic)
 		
 	def inputLegLength(self):
-		print('SETTING LEG LENGTH TO 100!')
-		self.config.obsHeightLegRatio = 100
-#
-#		#prompt for a string
-#		self.config.obsHeightLegRatio = vizinput.input('Enter leg length (cm):', value = float(90))
-#		
-#		try:
-#           # Test if it's an integer
-#			intValue = int(self.config.obsHeightLegRatio)
-#		except ValueError:
-#			viz.message( 'Please enter a valid integer')
-#			self.inputLegLength()
+		#print('SETTING LEG LENGTH TO 100!')
+		#self.config.obsHeightLegRatio = 100
+
+		#prompt for a string
+		self.config.obsHeightLegRatio = vizinput.input('Enter leg length (cm):', value = float(90))
+		
+		try:
+			# Test if it's an integer
+			intValue = int(self.config.obsHeightLegRatio)
+		except ValueError:
+			viz.message( 'Please enter a valid integer')
+			self.inputLegLength()
 	
 	def isVisObjInBox(self,vizObj):
 		
@@ -837,10 +846,12 @@ class Experiment(viz.EventClass):
 		leftFoot = self.room.leftFoot
 		leftFoot.setMocapRigidBody(config.mocap,'leftFoot')
 		leftFoot.toggleUpdateWithRigid()
+		leftFoot.visNode.alpha(0.0)
 		
 		rightFoot = self.room.rightFoot
 		rightFoot.setMocapRigidBody(config.mocap,'rightFoot')
 		rightFoot.toggleUpdateWithRigid()
+		rightFoot.visNode.alpha(0.0)
 		
 		#vizproximity.Sensor(leftFoot.visNode,source)
 		#manager = vizproximity.Manager()
@@ -963,6 +974,7 @@ class trial(viz.EventClass):
 		self.goSignalGiven = False 		
 		self.approachingObs = False
 		self.objIsVirtual = int(config.expCfg['trialTypes'][self.trialType]['objIsVirtual'])
+		
 		self.goSignalTimerObj = []
 		self.metronomeTimerObj = []
 		self.trialTimeoutTimerObj = []
@@ -1086,10 +1098,13 @@ class trial(viz.EventClass):
 			
 	def removeObs(self):
 
-		if( self.trialType == 't4' or self.trialType == 't5'  or self.trialType == 't6' ):
+		if( self.objectSizeText != -1 and (self.trialType == 't4' or self.trialType == 't5'  or self.trialType == 't6' )):
 			self.objectSizeText.remove()
-		self.obsObj.remove()		
-		self.obsObj = -1
+			self.objectSizeText = -1
+			
+		if( self.obsObj != -1):
+			self.obsObj.remove()		
+			self.obsObj = -1
 		
 	
 def demoMode(experimentObject):
@@ -1139,7 +1154,7 @@ experimentObject.start()
 #grid.scale([0.25,0.25,0.25])
 
 # If you want to see spheres for each marker
-visEnv.drawMarkerSpheres(experimentObject.room,experimentObject.config.mocap)
+#visEnv.drawMarkerSpheres(experimentObject.room,experimentObject.config.mocap)
 
 
 vizshape.addBox(size=(0.05,0.05,0.05))

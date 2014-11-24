@@ -295,7 +295,7 @@ class visObj(viz.EventClass):
         
     def __del__(self):
         
-        print 'Frame: ' + str(viz.getFrameNumber()) + 'Trying to remove object'
+        #print 'Frame: ' + str(viz.getFrameNumber()) + 'Trying to remove object'
         
         # Remove physical component
         if( self.physNode ):
