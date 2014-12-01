@@ -217,6 +217,7 @@ class Experiment(viz.EventClass):
 		## This is all the per-frame timer stuff
 		if( self.currentTrial.approachingObs == True and
 			mainViewPos_XYZ[0] > self.trialEndPosition ):
+			self.currentTrial.approachingObs = False
 			print 'Passed distance threshold.  Ending trial'
 			self.endTrial()
 				
@@ -285,7 +286,7 @@ class Experiment(viz.EventClass):
 				### Go signal already given.  Starting the trial
 				elif(self.currentTrial.goSignalGiven is True):
 					
-					#print 'Starting trial'
+					print 'Starting trial'
 					self.currentTrial.approachingObs = True
 					
 					# Start data collection
@@ -547,8 +548,14 @@ class Experiment(viz.EventClass):
 		## FrameTime, Event Flag, Trial Type 
 		## =======================================================================================================				
 		outputString = '* frameTime %f * ' % (viz.getFrameTime())
-		outputString = outputString + '* eventFlag %f * ' % (self.eventFlag.status)
+		#
+		#outputString = outputString + '* eventFlag %f * ' % (self.eventFlag.status)
 		outputString = outputString + '* trialType %s * ' % (self.currentTrial.trialType)
+
+		## =======================================================================================================
+		## Obstacle Height & Location 
+		## =======================================================================================================
+		outputString = outputString + '[ Obstacle_XYZ %f %f %f ] ' % ( self.currentTrial.obsXLoc, self.currentTrial.obsHeightM, self.currentTrial.obsZLoc)
 		
 		## =======================================================================================================
 		## ViewPos 
@@ -578,9 +585,43 @@ class Experiment(viz.EventClass):
 			rightFootPos_XYZ = [None, None, None]
 			rightFootQUAT_XYZW = [None, None, None]
 			
-		outputString = outputString + '[ RightFoot_XYZ %f %f %f ] ' % (rightFootPos_XYZ[0], rightFootPos_XYZ[1], rightFootPos_XYZ[2])
+		#outputString = outputString + '[ RightFoot_XYZ %f %f %f ] ' % (rightFootPos_XYZ[0], rightFootPos_XYZ[1], rightFootPos_XYZ[2])
 		
-		outputString = outputString + '< RightFootQUAT_WXYZ %f %f %f %f > ' % ( rightFootQUAT_XYZW[0], rightFootQUAT_XYZW[1], rightFootQUAT_XYZW[2], rightFootQUAT_XYZW[3] )
+		#outputString = outputString + '< RightFootQUAT_WXYZ %f %f %f %f > ' % ( rightFootQUAT_XYZW[0], rightFootQUAT_XYZW[1], rightFootQUAT_XYZW[2], rightFootQUAT_XYZW[3] )
+		MarkerPos = []
+		for i in range(17):
+			Pos = self.config.mocap.getMarkerPosition(i);
+			MarkerPos.append(Pos);
+		
+		outputString = outputString + '[ ShutterGlassMarker_XYZ '
+		# TODO: This should be stored in the ShutterGlass Object as .NumberOfMarker
+		for i in range(5):
+			ShutterGlassMarker = MarkerPos[i];
+			outputString = outputString + ' %f %f %f ' % (ShutterGlassMarker[0], ShutterGlassMarker[1], ShutterGlassMarker[2])		
+		outputString = outputString + '] '
+
+#		print 'MarkerPos ', MarkerPos
+		
+		outputString = outputString + '[ RightFootMarker_XYZ '
+		# TODO: This should be stored in the RightFootMarker Object as .NumberOfMarker
+		for i in range(4):
+			RightFootMarker = MarkerPos[i + 5];
+			outputString = outputString + ' %f %f %f ' % (RightFootMarker[0], RightFootMarker[1], RightFootMarker[2])		
+		outputString = outputString + '] '
+
+		outputString = outputString + '[ LeftFootMarker_XYZ '
+		# TODO: This should be stored in the LeftFootMarker Object as .NumberOfMarker
+		for i in range(4):
+			LeftFootMarker = MarkerPos[i + 9];
+			outputString = outputString + ' %f %f %f ' % (LeftFootMarker[0], LeftFootMarker[1], LeftFootMarker[2])		
+		outputString = outputString + '] '
+
+		outputString = outputString + '[ SpinalMarker_XYZ '
+		# TODO: This should be stored in the SpinalMarker Object as .NumberOfMarker
+		for i in range(4):
+			SpinalMarker = MarkerPos[i + 13];
+			outputString = outputString + ' %f %f %f ' % (SpinalMarker[0], SpinalMarker[1], SpinalMarker[2])		
+		outputString = outputString + '] '
 		
 		if( self.room.rightFoot ):
 			
@@ -592,9 +633,9 @@ class Experiment(viz.EventClass):
 			leftFootPos_XYZ = [None, None, None]
 			leftFootQUAT_XYZW = [None, None, None]
 			
-		outputString = outputString + '[ LeftFoot_XYZ %f %f %f ] ' % (leftFootPos_XYZ[0], leftFootPos_XYZ[1], leftFootPos_XYZ[2])
+		#outputString = outputString + '[ LeftFoot_XYZ %f %f %f ] ' % (leftFootPos_XYZ[0], leftFootPos_XYZ[1], leftFootPos_XYZ[2])
 		
-		outputString = outputString + '< LeftFootQUAT_WXYZ %f %f %f %f > ' % ( leftFootQUAT_XYZW[0], leftFootQUAT_XYZW[1], leftFootQUAT_XYZW[2], leftFootQUAT_XYZW[3] )
+		#outputString = outputString + '< LeftFootQUAT_WXYZ %f %f %f %f > ' % ( leftFootQUAT_XYZW[0], leftFootQUAT_XYZW[1], leftFootQUAT_XYZW[2], leftFootQUAT_XYZW[3] )
 		
 		return outputString #%f %d' % (viz.getFrameTime(), self.inCalibrateMode)
 		
@@ -705,23 +746,23 @@ class Experiment(viz.EventClass):
 			
 	def writeDataToText(self):
 
-		# Only write data is the experiment is ongoing
-		if( (self.currentTrial.approachingObs is False) ): # self.expInProgress is False) or (
+		# Only write data if the experiment is ongoing
+		if( (self.currentTrial.approachingObs == False) ): # self.expInProgress is False) or (
 			return
 		
-		try:
-			now = datetime.datetime.now()
-			dateTimeStr = str(now.hour) + ':' + str(now.minute) + ':' + str(now.second) + ':' + str(now.microsecond)
+#		try:
+			#now = datetime.datetime.now()
+			#dateTimeStr = str(now.hour) + ':' + str(now.minute) + ':' + str(now.second) + ':' + str(now.microsecond)
 			
-			expDataString = self.getOutput()
-			self.expDataFile.write(expDataString + '\n')
+		expDataString = self.getOutput()
+		self.expDataFile.write(expDataString + '\n')
 			
-			if( self.config.sysCfg['use_eyetracking']):
+#			if( self.config.sysCfg['use_eyetracking']):
 				
-				eyeDataString = self.getEyeData()
-				self.eyeDataFile.write(eyeDataString + '\n')
-		except:
-			a=1
+#				eyeDataString = self.getEyeData()
+#				self.eyeDataFile.write(eyeDataString + '\n')
+#		except:
+#			a=1
 		
 		# Eyetracker data
 	
