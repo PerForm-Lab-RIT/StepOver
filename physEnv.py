@@ -480,7 +480,7 @@ class physNode():
 	def setLinearVel(self,vel_XYZ):
 		self.body.setLinearVel(vel_XYZ)
 		
-	def setBounciness(self,bounciness):
+	def setBounciness(self, bounciness):
 		self.bounciness = bounciness
 		
 	def setFriction(self,friction):

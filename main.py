@@ -103,10 +103,14 @@ class Experiment(viz.EventClass):
 		# Create visual and physical objects (the room)
 	
 		self.room = visEnv.room(config)
+		viz.phys.enable()
 		
 		# self.room.physEnv 
-		self.hmdLinkedToView = False
+		self.hmdLinkedToView = False		
 		
+		
+		self.directionArrow = visEnv.visObj(self.room,'arrow',[.1,.1,.1],[-.8,.2,0],viz.PURPLE)
+		self.directionArrow.setEuler([270,0,0])
 		################################################################
 		################################################################
 		# Build block and trial list
@@ -115,10 +119,13 @@ class Experiment(viz.EventClass):
 		self.trialNumber = 0;
 		self.expInProgress = True;
 		
+		self.totalTrialNumber = 0;
 		self.blocks_bl = []
 		
+		self.room.offsetDistance = float(config.expCfg['room']['obstacleDistance'])
+		print'====> Obstacle Distance = ', self.room.offsetDistance
 		for bIdx in range(len(config.expCfg['experiment']['blockList'])):
-			self.blocks_bl.append(block(config,bIdx));
+			self.blocks_bl.append(block(config,bIdx, self.room));
 		
 		self.currentTrial = self.blocks_bl[self.blockNumber].trials_tr[self.trialNumber]
 		
@@ -140,6 +147,7 @@ class Experiment(viz.EventClass):
 		self.trialEndPosition = config.expCfg['experiment']['trialEndPosition']
 		self.metronomeTimeMS = config.expCfg['experiment']['metronomeTimeMS']
 		
+		self.collisionLocation = [10.0, 10.0, 10.0]
 		################################################################
 		##  LInk up the hmd to the mainview
 		
@@ -161,11 +169,14 @@ class Experiment(viz.EventClass):
 		##############################################################
 		## Callbacks and timers
 		
-		vizact.onupdate(viz.PRIORITY_PHYSICS,self._checkForCollisions)
+		# Hacked (Kamran)
+		#vizact.onupdate(viz.PRIORITY_PHYSICS,self._checkForCollisions)
 		
 		self.callback(viz.KEYDOWN_EVENT,  self.onKeyDown)
 		self.callback(viz.KEYUP_EVENT, self.onKeyUp)
 		self.callback( viz.TIMER_EVENT,self._timerCallback )
+		
+		self.callback( viz.COLLIDE_BEGIN_EVENT, self.onCollide )
 		
 		self.perFrameTimerID = viz.getEventID('perFrameTimerID') # Generates a unique ID.
 		self.starttimer( self.perFrameTimerID, viz.FASTEST_EXPIRATION, viz.FOREVER)
@@ -209,7 +220,7 @@ class Experiment(viz.EventClass):
 		# It can be configured to signify the start of a trial, the bounce of a ball, or whatever
 		
 		self.eventFlag = eventFlag()
-		
+
 	def _timerCallback(self,timerID):
 
 		mainViewPos_XYZ = viz.MainView.getPosition()
@@ -268,13 +279,14 @@ class Experiment(viz.EventClass):
 				if(self.currentTrial.goSignalGiven is False ):
 					  
 					# Head was removed from box after viewing was initiated
-					#print 'Left box prematurely!'
+					print 'Left box prematurely!'
 					
 					viz.playSound(soundBank.cowbell);
 					
 					# Remove box
 					self.currentTrial.waitingForGo = False
 					self.currentTrial.removeObs();
+					print 'LBP :> Remove Obs'
 					
 					#self.currentTrial.metronomeTimerObj.setEnabled(viz.TOGGLE);
 					#self.currentTrial.metronomeTimerObj = [];
@@ -286,7 +298,7 @@ class Experiment(viz.EventClass):
 				### Go signal already given.  Starting the trial
 				elif(self.currentTrial.goSignalGiven is True):
 					
-					print 'Starting trial'
+					print 'Starting trial ==> Type', self.currentTrial.trialType
 					self.currentTrial.approachingObs = True
 					
 					# Start data collection
@@ -310,9 +322,7 @@ class Experiment(viz.EventClass):
 			return
 		
 		theFloor = self.room.floor
-		theBackWall = self.room.wall_NegZ
-		theBall = self.currentTrial.ballObj		
-		thePaddle = self.room.paddle
+
 		
 		for idx in range(len(thePhysEnv.collisionList_idx_physNodes)):
 			
@@ -336,15 +346,15 @@ class Experiment(viz.EventClass):
 					self.currentTrial.ballOnPaddlePos_XYZ = bouncePos_XYZ
 					
 					#print 'Ball has hit the ground.'
-					soundBank.bounce.play()
+					viz.playSound(soundBank.bounce)
 					
 					# Compare pre-bounce flight dur with predicted pre-bounce flight dur
 					actualPreBounceFlightDur =  float(viz.getFrameTime()) - self.currentTrial.launchTime
 					durationError = self.currentTrial.predictedPreBounceFlightDur - actualPreBounceFlightDur
 					self.currentTrial.flightDurationError = durationError 
 					
-					print 'Predicted: ' + str(self.currentTrial.predictedPreBounceFlightDur)
-					print 'Actual   : ' + str(actualPreBounceFlightDur)
+					#print 'Predicted: ' + str(self.currentTrial.predictedPreBounceFlightDur)
+					#print 'Actual   : ' + str(actualPreBounceFlightDur)
 					
 					print 'Flight duration error: ' + str(durationError)
 					
@@ -356,7 +366,7 @@ class Experiment(viz.EventClass):
 					self.eventFlag.setStatus(4)
 					self.currentTrial.ballHasHitPaddle = True
 					
-					soundBank.cowbell.play()
+					viz.playSound(soundBank.cowbell)
 					
 					# self.ballObj.physNode.setStickUponContact( room.paddle.physNode.geom )
 					if( theBall.physNode.queryStickyState(thePaddle.physNode) ):
@@ -380,9 +390,8 @@ class Experiment(viz.EventClass):
 					self.eventFlag.setStatus(5)
 					#print 'Ball has hit the back wall.'
 					
-					#currentTrial.removeBall()
-					soundBank.bounce.play()
-
+					viz.playSound(soundBank.bounce)
+			
 	def start(self):
 		
 		##This is called when the experiment should begin.
@@ -432,13 +441,44 @@ class Experiment(viz.EventClass):
 			self.room.walls.visible(viz.TOGGLE)
 			self.room.objects.visible(viz.TOGGLE)
 		
-			
 	def createCamera(self):
 		"""
 		Head camera is generally initialized as part of the system calls. Additional changes should be added here.
 		"""
 		pass		
-		
+
+	#Called when two objects collide in the physics simulator
+	def onCollide(self, e):
+		#Did ball collide with a bumper?
+		if (e.obj2 == self.room.leftFoot.visNode and e.obj1 == self.room.rightFoot.visNode):
+			self.eventFlag.setStatus(3)
+			self.collisionLocation = e.pos
+			print 'Collided Objects are Left & Right Foot at\n', e.pos
+			#viz.playSound( 'crashVeryQuiet.wav' )
+			
+		elif(e.obj2 == self.room.leftFoot.visNode and e.obj1 == self.room.MyObstacle):
+			self.eventFlag.setStatus(4)
+			self.collisionLocation = e.pos
+			print 'Collided Objects are Left Foot and Obstacle at\n', e.pos
+			#viz.playSound( 'crashVeryQuiet.wav' )
+			
+		elif(e.obj2 == self.room.rightFoot.visNode and e.obj1 == self.room.MyObstacle):
+			self.eventFlag.setStatus(5)
+			self.collisionLocation = e.pos
+			print 'Collided Objects are Right Foot and Obstacle at\n', e.pos
+			#viz.playSound( 'crashVeryQuiet.wav' )
+#		else:
+#			print 'Collision Detected\n', e.obj1, e.obj2, e.pos
+
+		'''		if (e.obj2 == self.currentTrial.CollidingObstacle and e.obj1 == self.room.rightFoot.visNode):
+			print 'Collided Objects are Right Foot & Obstacle at\n', e.pos
+			viz.playSound( 'crashVeryQuiet.wav' )
+			self.eventFlag.setStatus(1)
+		if (e.obj2 == self.currentTrial.CollidingObstacle and e.obj1 == self.room.leftFoot.visNode):
+			print 'Collided Objects are Left Foot & Obstacle at\n', e.pos
+			viz.playSound( 'crashVeryQuiet.wav' )
+			self.eventFlag.setStatus(2)
+		'''
 	def onKeyDown(self, key):
 		"""
 		Interactive commands can be given via the keyboard. Some are provided here. You'll likely want to add more.
@@ -450,6 +490,9 @@ class Experiment(viz.EventClass):
 		
 		mocapSys = self.config.mocap;
 		
+		
+		if key == 't':
+			self.toggleWalkingDirection()
 		###################R#######################################
 		##########################################################
 		## Keys used in the defauRRlt mode
@@ -549,7 +592,10 @@ class Experiment(viz.EventClass):
 		## =======================================================================================================				
 		outputString = '* frameTime %f * ' % (viz.getFrameTime())
 		#
-		#outputString = outputString + '* eventFlag %f * ' % (self.eventFlag.status)
+		outputString = outputString + '* eventFlag %f * ' % (self.eventFlag.status)
+		#if ( ( self.eventFlag == 3 ) or ( self.eventFlag == 4 ) or ( self.eventFlag == 5 ) ):
+		outputString = outputString + ' Collision Location [ %f %f %f ] ' % (self.collisionLocation[0], self.collisionLocation[1], self.collisionLocation[2])
+		
 		outputString = outputString + '* trialType %s * ' % (self.currentTrial.trialType)
 
 		## =======================================================================================================
@@ -560,8 +606,8 @@ class Experiment(viz.EventClass):
 		## =======================================================================================================
 		## ViewPos 
 		## =======================================================================================================				
-		viewPos_XYZ = viz.MainView.getPosition()
-		outputString = outputString + '[ viewPos_XYZ %f %f %f ] ' % (viewPos_XYZ[0],viewPos_XYZ[1],viewPos_XYZ[2])
+		#viewPos_XYZ = viz.MainView.getPosition()
+		#outputString = outputString + '[ viewPos_XYZ %f %f %f ] ' % (viewPos_XYZ[0],viewPos_XYZ[1],viewPos_XYZ[2])
 		
 		## =======================================================================================================
 		## Left and Right Foot Position
@@ -593,35 +639,40 @@ class Experiment(viz.EventClass):
 			Pos = self.config.mocap.getMarkerPosition(i);
 			MarkerPos.append(Pos);
 		
-		outputString = outputString + '[ ShutterGlassMarker_XYZ '
+		outputString = outputString + '< ShutterGlass_XYZ '
 		# TODO: This should be stored in the ShutterGlass Object as .NumberOfMarker
 		for i in range(5):
 			ShutterGlassMarker = MarkerPos[i];
-			outputString = outputString + ' %f %f %f ' % (ShutterGlassMarker[0], ShutterGlassMarker[1], ShutterGlassMarker[2])		
-		outputString = outputString + '] '
+			outputString = outputString + 'Marker %d ' %(i)
+			outputString = outputString + '[ %f %f %f ] ' % (ShutterGlassMarker[0], ShutterGlassMarker[1], ShutterGlassMarker[2])		
+		outputString = outputString + '> '
 
 #		print 'MarkerPos ', MarkerPos
 		
-		outputString = outputString + '[ RightFootMarker_XYZ '
+		outputString = outputString + '< RightFoot_XYZ '
 		# TODO: This should be stored in the RightFootMarker Object as .NumberOfMarker
 		for i in range(4):
 			RightFootMarker = MarkerPos[i + 5];
-			outputString = outputString + ' %f %f %f ' % (RightFootMarker[0], RightFootMarker[1], RightFootMarker[2])		
-		outputString = outputString + '] '
+			outputString = outputString + 'Marker %d ' %(i)
+			outputString = outputString + '[ %f %f %f ] ' % (RightFootMarker[0], RightFootMarker[1], RightFootMarker[2])		
+		outputString = outputString + '> '
 
-		outputString = outputString + '[ LeftFootMarker_XYZ '
+		outputString = outputString + '< LeftFoot_XYZ '
 		# TODO: This should be stored in the LeftFootMarker Object as .NumberOfMarker
 		for i in range(4):
 			LeftFootMarker = MarkerPos[i + 9];
-			outputString = outputString + ' %f %f %f ' % (LeftFootMarker[0], LeftFootMarker[1], LeftFootMarker[2])		
-		outputString = outputString + '] '
+			outputString = outputString + 'Marker %d ' %(i)
+			outputString = outputString + '[ %f %f %f ] ' % (LeftFootMarker[0], LeftFootMarker[1], LeftFootMarker[2])	
 
-		outputString = outputString + '[ SpinalMarker_XYZ '
+		outputString = outputString + '> '
+
+		outputString = outputString + '< Spinal_XYZ '
 		# TODO: This should be stored in the SpinalMarker Object as .NumberOfMarker
 		for i in range(4):
 			SpinalMarker = MarkerPos[i + 13];
-			outputString = outputString + ' %f %f %f ' % (SpinalMarker[0], SpinalMarker[1], SpinalMarker[2])		
-		outputString = outputString + '] '
+			outputString = outputString + 'Marker %d ' %(i)
+			outputString = outputString + '[ %f %f %f ] ' % (SpinalMarker[0], SpinalMarker[1], SpinalMarker[2])		
+		outputString = outputString + '> '
 		
 		if( self.room.rightFoot ):
 			
@@ -680,12 +731,24 @@ class Experiment(viz.EventClass):
 		outputString = outputString + '* eyeQuality %i * ' % eyeQual.value
 		
 		return outputString
+
+	def toggleWalkingDirection(self):
+		print 'Changing Direction From ' + str(self.room.isWalkingUpAxis)+' to ' + str(not(self.room.isWalkingUpAxis))
+		self.room.isWalkingUpAxis = not(self.room.isWalkingUpAxis)
+		
+		if( self.room.isWalkingUpAxis ):
+			self.directionArrow.setEuler([90,0,0])
+			self.room.standingBox.setPosition([-0.1, 0.01, 1.7])
+		else:
+			self.directionArrow.setEuler([270,0,0])
+			self.room.standingBox.setPosition([-0.1, 0.01, -2.4])
+		
 		
 	def endTrial(self):
 		
 		endOfTrialList = len(self.blocks_bl[self.blockNumber].trials_tr)
 		
-		
+		self.toggleWalkingDirection();	
 		#print 'Ending block: ' + str(self.blockNumber) + 'trial: ' + str(self.trialNumber)
 		
 		if( self.trialNumber < endOfTrialList ):
@@ -695,7 +758,7 @@ class Experiment(viz.EventClass):
 			if( recalAfterTrial_idx.count(self.trialNumber ) > 0):
 				soundBank.gong.play()
 				vizact.ontimer2(0,0,self.toggleEyeCalib)
-
+				
 			# Increment trial 
 			self.trialNumber += 1
 			
@@ -703,6 +766,7 @@ class Experiment(viz.EventClass):
 			viz.playSound(soundBank.cowbell)
 			## Remove obstacle
 			self.currentTrial.removeObs()
+			print 'End of Trial :> Remove Obs'
 		
 			## Stop timers
 			if( type(self.currentTrial.metronomeTimerObj) is not list ):			
@@ -738,11 +802,6 @@ class Experiment(viz.EventClass):
 				
 			print 'Starting block: ' + str(self.blockNumber) + ' Trial: ' + str(self.trialNumber)
 			self.currentTrial = self.blocks_bl[self.blockNumber].trials_tr[self.trialNumber]
-		
-#		if (self.trialNumber > 2):
-#			self.expDataFile.flush()
-#			self.expDataFile.close()
-#			print 'Dummy End of Trial & Block ==> TxT file Saved & Closed'
 			
 	def writeDataToText(self):
 
@@ -856,8 +915,10 @@ class Experiment(viz.EventClass):
 
 		standingBoxOffsetX = self.config.expCfg['room']['standingBoxOffset_X']
 		standingBoxOffsetZ = self.config.expCfg['room']['standingBoxOffset_Z']
+		BBox = self.room.standingBox.getPosition();
+		standingBoxOffsetZ = BBox[2]
 		standingBoxSize_WHL = self.config.expCfg['room']['standingBoxSize_WHL']
-			
+		
 			
 		# Is the head inside the standing box?
 		if( pos_xyz[0] > (standingBoxOffsetX - standingBoxSize_WHL[0]/2) and 
@@ -883,16 +944,22 @@ class Experiment(viz.EventClass):
 		
 		shutterRigid = config.mocap.returnPointerToRigid('shutter')
 		self.config.virtualPlane.attachViewToGlasses(eyeSphere.visNode,shutterRigid)
-		
+				
 		leftFoot = self.room.leftFoot
 		leftFoot.setMocapRigidBody(config.mocap,'leftFoot')
 		leftFoot.toggleUpdateWithRigid()
-		leftFoot.visNode.alpha(0.0)
+		leftFoot.visNode.alpha(0.9)
+		self.room.LFBox = leftFoot.visNode.collideBox(bounce = 0, friction = 1, density = 0.8, hardness = 0.8 )
+		leftFoot.visNode.add('box.wrl',alpha=1,scale=leftFoot.visNode.getBoundingBox(viz.REL_LOCAL).size) # Show bounding area
+		leftFoot.visNode.enable( viz.COLLIDE_NOTIFY )
 		
 		rightFoot = self.room.rightFoot
 		rightFoot.setMocapRigidBody(config.mocap,'rightFoot')
 		rightFoot.toggleUpdateWithRigid()
-		rightFoot.visNode.alpha(0.0)
+		rightFoot.visNode.alpha(0.9)
+		self.room.RFBox = rightFoot.visNode.collideBox(bounce = 0, friction = 1, density = 0.8, hardness = 0.8 )
+		rightFoot.visNode.add('box.wrl',alpha=1,scale=rightFoot.visNode.getBoundingBox(viz.REL_LOCAL).size)
+		rightFoot.visNode.enable( viz.COLLIDE_NOTIFY )
 		
 		#vizproximity.Sensor(leftFoot.visNode,source)
 		#manager = vizproximity.Manager()
@@ -904,11 +971,11 @@ class eventFlag(viz.EventClass):
 		################################################################
 		##  Eventflag
 		
-		# 1 ball launched
-		# 2 * not used * 
-		# 3 ball has hit floor
-		# 4 ball has hit paddle
-		# 5 ball has hit back wall
+		# 1 Left Foot Hit Obstacle
+		# 2 Right Foot Hit Obstacle
+		# 3 Foots Collided
+		# 4 Right Foot Step Over Occured
+		# 5 Left Foot Step Over Occured
 		# 6 trial end
 		# 7 block end
 		
@@ -951,10 +1018,13 @@ class eventFlag(viz.EventClass):
 			print 'Did not reset! Status already set to ' + str(self.status)
 		else:
 			self.status = 0; # 0 Means nothing is happening
+			self.collisionLocation = [10.0, 10.0, 10.0]
+
+			
 			
 		
 class block():
-	def __init__(self,config=None,blockNum=1):
+	def __init__(self,config=None,blockNum=1, room = None):
 			
 		# Each block will have a block.trialTypeList
 		# This list is a list of strings of each trial type
@@ -963,11 +1033,12 @@ class block():
 		# e.g. 't1,t2,t2,t2,t1'
 		
 		self.blockName = config.expCfg['experiment']['blockList'][blockNum]
-
+		self.room = room
 	#    Kinds of trial in this block
 		
 		# trialTypeList enumerates the types of trials
 		self.trialTypesInBlock = config.expCfg['blocks'][self.blockName]['trialTypesString'].split(',')
+		
 		# The number of each type of trial
 		self.numOfEachTrialType_type = map(int,config.expCfg['blocks'][self.blockName]['trialTypeCountString'].split(','));
 		
@@ -994,7 +1065,7 @@ class block():
 		for trialNumber in range(self.numTrials):
 			
 			## Get trial info
-			trialObj = trial(config,self.trialTypeList_tr[trialNumber])
+			trialObj = trial(config,self.trialTypeList_tr[trialNumber], self.room)
 				
 			##Add the body to the list
 			self.trials_tr.append(trialObj)
@@ -1003,11 +1074,12 @@ class block():
 			#nextBall = viz.cycle(balls); 
 		
 class trial(viz.EventClass):
-	def __init__(self,config=None,trialType='t1'):
+	def __init__(self,config=None,trialType='t1', room = None):
 		
 		#viz.EventClass.__init__(self)
 		
 		self.trialType = trialType
+		self.room = room
 
 		## State flags
 		self.subIsInBox = False
@@ -1020,14 +1092,14 @@ class trial(viz.EventClass):
 		self.metronomeTimerObj = []
 		self.trialTimeoutTimerObj = []
 		
-		self.legLengthCM = config.expCfg['experiment']['legLengthCM']
+		self.legLengthCM = config.expCfg['experiment']['legLengthCM']		
 		self.obsHeightM = []
-		
 		
 		# Object placeholders
 		self.obsObj = -1
 		self.objectSizeText = -1
 		
+		#self.totalTrialNumber = 
 		###########################################################################################
 		###########################################################################################
 		## Get fixed variables here
@@ -1035,16 +1107,16 @@ class trial(viz.EventClass):
 		try:
 			self.obsColor_RGB = map(float,config.expCfg['trialTypes'][self.trialType]['obsColor_RGB'])
 		except:
-			print 'Using def color'
+			#print 'Using def color'
 			self.obsColor_RGB = map(float,config.expCfg['trialTypes']['default']['obsColor_RGB'])
 		
 		self.obsHeightLegRatio = float(config.expCfg['trialTypes'][self.trialType]['obsHeightLegRatio'])
 		
-		self.obsXLoc_distType = []
-		self.obsXLoc_distParams = []
-		self.obsXLoc = []
+		self.obsZLoc_distType = []
+		self.obsZLoc_distParams = []
+		self.obsZLoc = []
 		
-		self.obsZLoc = config.expCfg['room']['standingBoxOffset_Z']
+		self.obsXLoc = config.expCfg['room']['standingBoxOffset_X']
 				
 		# The rest of variables are set below, by drawing values from distributions
 #		
@@ -1060,20 +1132,25 @@ class trial(viz.EventClass):
 		# Go into config file and draw variables from the specified distributions
 		# When a distribution is specified, select a value from the distribution
 		
-		variablesInATrial = config.expCfg['trialTypes']['default'].keys()
-		
+		#variablesInATrial = config.expCfg['trialTypes']['default'].keys()
+		variablesInATrial = config.expCfg['trialTypes'][self.trialType].keys()
+		#print 'All Variables:', variablesInATrial
+		# for all of this trial type (e.g. t1, t2...)
 		for varIdx in range(len(variablesInATrial)):
+			# find the variable with "_distType" in the string/variable name
 			if "_distType" in variablesInATrial[varIdx]:
-			
+				# Extracts that variable typeobsXLoc_distType
 				varName = variablesInATrial[varIdx][0:-9]
-
+				#print '===>Variable Name:', varName
+				# _setValueOrUseDefault assigns a value according to the distribution type
 				distType, distParams, value = self._setValueOrUseDefault(config,varName)
+									
 				exec( 'self.' + varName + '_distType = distType' )
 				exec( 'self.' + varName + '_distParams = distParams' )
 				exec( 'self.' + varName + '_distType = distType' )
 				# Draw value from a distribution
 				exec( 'self.' + varName + ' = drawNumberFromDist( distType , distParams);' )
-					
+
 #	def removeBall(self):
 #		An example of how to remove an object from the room
 #		self.ballObj.remove()
@@ -1087,22 +1164,24 @@ class trial(viz.EventClass):
 	def _setValueOrUseDefault(self,config,paramPrefix):
 		
 		try:
-			#print paramPrefix
 			# Try to values from the subsection [[trialType]]
 			distType = config.expCfg['trialTypes'][self.trialType][paramPrefix + '_distType']
 			distParams = config.expCfg['trialTypes'][self.trialType][paramPrefix +'_distParams']
+			#print 'Using Config File for Parameters =>', paramPrefix
 			
 		except:
-			# print 'Using default: **' + paramPrefix + '**'
 			# Try to values from the subsection [['default']]
 			distType = config.expCfg['trialTypes']['default'][paramPrefix + '_distType'];
 			distParams = config.expCfg['trialTypes']['default'][paramPrefix + '_distParams'];
+			print 'Using default: **' + paramPrefix + '**'
 		
 		
+		#print 'Distribution :', distType, distParams
 		value = drawNumberFromDist(distType,distParams)
 	
 		
 		return distType,distParams,value
+		
 			
 	def placeObs(self,room):
 		
@@ -1112,31 +1191,52 @@ class trial(viz.EventClass):
 		if( self.objIsVirtual == True ):
 			
 			self.obsHeightM = self.legLengthCM * self.obsHeightLegRatio / 100
-			obsSize = [1,0.1,self.obsHeightM] # lwh
+			obsSize = [0.1,1,self.obsHeightM] # lwh
 			obsLoc = [self.obsXLoc,self.obsHeightM/2,self.obsZLoc]
-		
-			self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
+					
+			#self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
 		else:
 			
-			if( self.trialType == 't4' ):
+			if( self.trialType == '	t4' ):
 				displayText = 'Short'
 			elif( self.trialType == 't5' ):
 				displayText = 'Med'
 			elif( self.trialType == 't6' ):
 				displayText = 'Tall'
-				
-			self.obsHeightM = 0.001
-			obsSize = [1,0.01,self.obsHeightM] # lwh
+			
+			# Fix Me : Kamran : It seems here the Height is being overwritten which is wrong
+			#self.obsHeightM = 0.001
+			self.obsHeightM = self.legLengthCM * self.obsHeightLegRatio / 100
+			obsSize = [0.1,1,self.obsHeightM] # lwh
 			obsLoc = [self.obsXLoc,self.obsHeightM/2,self.obsZLoc]
 
-			self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
-
 			self.objectSizeText = viz.addText3D(displayText)
-			self.objectSizeText.setEuler([-90,90,0],viz.ABS_GLOBAL)
+			self.objectSizeText.setEuler([-90,90,0], viz.ABS_GLOBAL)
 			self.objectSizeText.setPosition([-1.2,.001,-0.6],viz.ABS_GLOBAL)
 			scale = 0.1
-			self.objectSizeText.setScale([scale ,scale ,scale ])
-			
+			self.objectSizeText.setScale([scale ,scale ,scale])
+
+		if ( self.room.isWalkingUpAxis ):
+			obsLoc[2] = obsLoc[2] - self.room.offsetDistance + self.room.standingBox.getPosition()[2]
+		else:
+			obsLoc[2] = obsLoc[2] + self.room.offsetDistance + self.room.standingBox.getPosition()[2]
+
+		
+		self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
+		print 'Placing Obstacle at: ', obsLoc
+
+		self.room.MyObstacle = vizshape.addBox(size = [1, self.obsHeightM, 0.15], color = viz.PURPLE)
+		self.room.MyObstacle.setPosition(obsLoc) # + float([0.5, 0, 0.5]
+		self.room.CollidingBox = self.room.MyObstacle.collideBox( obsSize, bounce = 0.1, friction = 1, density = 0, hardness = 0.8 )
+		#print 'Colliding Box ======>', self.room.CollidingBox
+		self.room.MyObstacle.enable( viz.COLLIDE_NOTIFY)
+		#print 'MyObstracle ======>', self.room.MyObstacle
+		'''
+		self.room.MyFloor = vizshape.addPlane( size = [10, 10], axis = vizshape.AXIS_Y, cullFace = True)
+		self.room.MyFloor.setPosition([0, -0.05, 0]) # + float([0.5, 0, 0.5]
+		self.room.MyFloor.color(viz.ORANGE)
+		'''
+
 	def removeObs(self):
 
 		if( self.objectSizeText != -1 and (self.trialType == 't4' or self.trialType == 't5'  or self.trialType == 't6' )):
@@ -1146,7 +1246,16 @@ class trial(viz.EventClass):
 		if( self.obsObj != -1):
 			self.obsObj.remove()		
 			self.obsObj = -1
-		
+
+		if( self.room.MyObstacle != -1):
+			self.room.MyObstacle.remove()		
+			self.room.MyObstacle = -1
+
+'''
+		if( self.room.CollidingBox != -1):
+			self.room.CollidingBox.remove()		
+			self.room.CollidingBox = -1
+'''
 	
 def demoMode(experimentObject):
 	
@@ -1190,15 +1299,15 @@ experimentConfiguration = vrlabConfig.VRLabConfig(expConfigFileName)
 experimentObject = Experiment(experimentConfiguration)
 experimentObject.start()
 #
-#demoMode(experimentObject)
+demoMode(experimentObject)
 #grid = vizshape.addGrid()
 #grid.scale([0.25,0.25,0.25])
 
 # If you want to see spheres for each marker
-#visEnv.drawMarkerSpheres(experimentObject.room,experimentObject.config.mocap)
+visEnv.drawMarkerSpheres(experimentObject.room,experimentObject.config.mocap)
 
 
-vizshape.addBox(size=(0.05,0.05,0.05))
+#vizshape.addBox(size=(0.05,0.05,0.05))
 if( experimentObject.hmdLinkedToView == False ):
 	
 	#print 'Head controlled by mouse/keyboard. Initial viewpoint set in vrLabConfig _setupSystem()'
@@ -1206,7 +1315,7 @@ if( experimentObject.hmdLinkedToView == False ):
 	#viz.MainView.setPosition(-3,2,-3)
 	#viz.MainView.setPosition([experimentObject.room.wallPos_NegX +.1, 2, experimentObject.room.wallPos_NegZ +.1])
 	#viz.MainView.lookAt([0,2,-2])
-	# Setup keyboard/mouse tracker
+	# Setup keyboard/mouse trackerklkk
 	
 	import vizcam
 	
