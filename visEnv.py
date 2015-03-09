@@ -21,9 +21,6 @@ class room():
         self.walls = viz.addGroup()
         self.objects = viz.addGroup()
         
-        self.CollidingBox = [];
-        self.MyObstacle = []
-        
         ##################################
         ## Physical environment
         self.physEnv = physEnv.physEnv()
@@ -136,9 +133,7 @@ class room():
         
         if( self.drawStandingBox ):
             self.createStandingBox()
-
-        self.isWalkingUpAxis = False
-
+        
     def fillWithVisObj(self):
         # This little bit of code fills the room with objects specified in the config file
         
@@ -160,9 +155,7 @@ class room():
             self.standingBox.emissive([0,1,0])
             self.standingBox.alpha(0.5)
             
-            # Fix Me: Kamran
-            #self.standingBox.setPosition(float(self.standingBoxOffset_X),self.standingBoxSize_WHL[1]/2, float(self.standingBoxOffset_Z ))          
-            self.standingBox.setPosition([-0.1, 0.01, -2.4])
+            self.standingBox.setPosition(float(self.standingBoxOffset_X),self.standingBoxSize_WHL[1]/2, float(self.standingBoxOffset_Z ))          
 
             self.standingBox.color(1,0,0,node='left')            
             self.standingBox.emissive(1,0,0,node='left')
@@ -217,7 +210,7 @@ class wall():
         ##  Create visNode: a texture quad
         
         self.visNode = viz.addTexQuad()
-        self.visNode.setScale(dimensions[0], dimensions[1])
+        self.visNode.setScale(dimensions[0],dimensions[1])
         self.visNode.setPosition(position)
         self.visNode.setAxisAngle(axisAngle)
         self.visNode.disable(viz.DYNAMICS)
@@ -372,10 +365,7 @@ class visObj(viz.EventClass):
                 newvisNode = eval(evalString)
             else:
                 newvisNode = vizshape.addCylinder(height=self.size[0],radius=self.size[1], alpha = self.alpha,color=viz.BLUE, axis = vizshape.AXIS_Y )
-        elif ('arrow' in self.shape):
             
-            newvisNode = vizshape.addArrow(alpha = self.alpha,color=viz.BLUE, axis = vizshape.AXIS_X, length=0.2,radiusRatio=0.05 )
-
         if( newvisNode ) :
                     
             self.visNode = newvisNode
@@ -407,11 +397,7 @@ class visObj(viz.EventClass):
         #self.visNode.setVelocity(velocity)
         if( self.physNode.body ):
             return self.physNode.body.getLinearVel()
-
-    def getPosition(self):
-        
-        return self.position    
-
+    
     def getAngularVelocity(self):
         
         #self.visNode.setVelocity(velocity)
@@ -424,12 +410,6 @@ class visObj(viz.EventClass):
             self.physNode.setPosition(position)
         
         self.visNode.setPosition(position)
-        
-    def setEuler(self, eulerAngle):
-        if(self.physNode):
-            self.physNode.setEuler(eulerAngle)
-        
-        self.visNode.setEuler(eulerAngle)
         
     def setColor(self,color3f):
         
@@ -645,13 +625,7 @@ class mocapMarkerSphere(visObj):
         self.markerNumber = markerNum
         self.mocapDevice = mocap
         self.toggleUpdateWithMarker()
-        
-        def setYToZero():
-            currentPos_xyz = self.visNode.getPosition()
-            self.visNode.setPosition([currentPos_xyz[0],0,currentPos_xyz[2]])
-        
-        vizact.onupdate(viz.PRIORITY_FIRST_UPDATE+1, setYToZero)
-        
+
 def drawMarkerSpheres(room,mocap):
     
      ##  Create mocap marker spheres - 1 per LED
@@ -663,8 +637,7 @@ def drawMarkerSpheres(room,mocap):
             
             print 'visEnv.mocapMarkerSphere: Drawing marker ' + str(idx)
             markerVisObjList_idx.append(mocapMarkerSphere(mocap,room,idx))
-        
-        
+
 if __name__ == "__main__":
 
     import vizact
