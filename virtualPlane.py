@@ -76,7 +76,7 @@ class virtualPlane():
 		self.cornerCoordinates_cIdx[cIdx] = [markerLocation_XYZ[0], markerLocation_XYZ[1], markerLocation_XYZ[2]]
 		
 		if( self.isAFloor ):
-			print 'Updated corner of floor with height = 0'
+			print 'Updated corner', cIdx,' of floor with height = 0'
 			self.cornerCoordinates_cIdx[cIdx][1] = 0;
 		else:
 			print 'Updated corner.'
