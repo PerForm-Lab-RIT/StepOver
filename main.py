@@ -122,7 +122,7 @@ class Experiment(viz.EventClass):
 		self.totalTrialNumber = 0;
 		self.blocks_bl = []
 		
-		self.room.offsetDistance = float(config.expCfg['room']['obstacleDistance'])
+		self.room.offsetDistance = float(config.expCfg['room']['minObstacleDistance'])
 		print'====> Obstacle Distance = ', self.room.offsetDistance
 		for bIdx in range(len(config.expCfg['experiment']['blockList'])):
 			self.blocks_bl.append(block(config,bIdx, self.room));
@@ -194,7 +194,7 @@ class Experiment(viz.EventClass):
 		dataOutPutDir = config.sysCfg['writer']['outFileDir']
 		
 		self.expDataFile = open(dataOutPutDir + 'exp_data-' + dateTimeStr + '.txt','w+')
-		self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE,self.writeDataToText)
+		self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE, self.writeDataToText)
 
 # TODO: Double check if this is needed for future or not (Kamran)
 #		# Use text output!
@@ -228,7 +228,6 @@ class Experiment(viz.EventClass):
 		## This is all the per-frame timer stuff
 		if( self.currentTrial.approachingObs == True and
 			mainViewPos_XYZ[0] > self.trialEndPosition ):
-			self.currentTrial.approachingObs = False
 			print 'Passed distance threshold.  Ending trial'
 			self.endTrial()
 				
@@ -342,7 +341,7 @@ class Experiment(viz.EventClass):
 						self.collisionLocOnObs_XYZ = leftFoot.physNode.collisionPosLocal_XYZ
 					print 'Collided Objects are Left Foot and Obstacle at\n', self.collisionLocOnObs_XYZ
 					#self.currentTrial.removeObs()
-					viz.playSound(soundBank.bounce)
+					viz.playSound(soundBank.beep)
 				
 				elif( physNode1 == rightFoot.physNode and physNode2 == obstacle.physNode ):
 					
@@ -353,7 +352,7 @@ class Experiment(viz.EventClass):
 						self.collisionLocOnObs_XYZ = rightFoot.physNode.collisionPosLocal_XYZ
 					print 'Collided Objects are Right Foot and Obstacle at\n', self.collisionLocOnObs_XYZ
 					#self.currentTrial.removeObs()
-					viz.playSound(soundBank.bounce)
+					viz.playSound(soundBank.beep)
 			
 	def start(self):
 		
@@ -459,10 +458,10 @@ class Experiment(viz.EventClass):
 				mocapSys.resetRigid('shutter')
 			elif key == 'L':
 				mocapSys.resetRigid('left')
-				self.resizeFootBox('left')
+				#self.resizeFootBox('left')
 			elif key == 'R':
 				mocapSys.resetRigid('right')
-				self.resizeFootBox('right')
+				#self.resizeFootBox('right')
 					
 			if( viz.key.isDown( viz.KEY_CONTROL_L )):
 				
@@ -533,7 +532,7 @@ class Experiment(viz.EventClass):
 		
 		#FIXME: Collision locatoin is not set correctly in _checkForCollisions
 		#if( self.eventFlag.status == 4 or self.eventFlag.status == 5 ):
-			#outputString = outputString + ' collisionLocOnObs_XYZ [ %f %f %f ] ' % (self.collisionLocOnObs_XYZ[0], self.collisionLocOnObs_XYZ[1], self.collisionLocOnObs_XYZ[2])
+		outputString = outputString + ' collisionLocOnObs_XYZ [ %f %f %f ] ' % (self.collisionLocOnObs_XYZ[0], self.collisionLocOnObs_XYZ[1], self.collisionLocOnObs_XYZ[2])
 		
 		outputString = outputString + ' trialType %s ' % (self.currentTrial.trialType)
 
@@ -710,6 +709,7 @@ class Experiment(viz.EventClass):
 		endOfTrialList = len(self.blocks_bl[self.blockNumber].trials_tr)
 		
 		self.toggleWalkingDirection();	
+		self.currentTrial.approachingObs = False
 		#print 'Ending block: ' + str(self.blockNumber) + 'trial: ' + str(self.trialNumber)
 		
 		if( self.trialNumber < endOfTrialList ):
@@ -776,7 +776,7 @@ class Experiment(viz.EventClass):
 			#dateTimeStr = str(now.hour) + ':' + str(now.minute) + ':' + str(now.second) + ':' + str(now.microsecond)
 			
 		expDataString = self.getOutput()
-		self.expDataFile.write(expDataString + '\n')
+		self.expDataFile.write(expDataString)
 			
 #			if( self.config.sysCfg['use_eyetracking']):
 				
@@ -913,6 +913,7 @@ class Experiment(viz.EventClass):
 		leftFoot.enablePhysNode()
 		leftFoot.toggleUpdatePhysWithVis()
 		#leftFoot.visNode.disable(viz.RENDERING)
+		leftFoot.visNode.visible(viz.ON)
 
 		
 		rightFoot = self.room.rightFoot
@@ -921,6 +922,7 @@ class Experiment(viz.EventClass):
 		rightFoot.enablePhysNode()
 		rightFoot.toggleUpdatePhysWithVis()
 		#rightFoot.visNode.disable(viz.RENDERING)
+		rightFoot.visNode.visible(viz.ON)
 
 	def resizeFootBox(self,footSide):
 		''' 
@@ -1206,7 +1208,8 @@ class trial(viz.EventClass):
 			self.objectSizeText.setPosition([-1.,.001,1.3],viz.ABS_GLOBAL)
 			scale = 0.1
 			self.objectSizeText.setScale([scale ,scale ,scale])
-
+		else:
+			print'Placing Obstacle at', obsLoc, 'size', obsSize
 		###############
 #		if( self.objIsVirtual == True ):
 #			
