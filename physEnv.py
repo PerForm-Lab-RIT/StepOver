@@ -11,11 +11,11 @@ class physEnv(viz.EventClass):
 		
 		print 'physEnv.init(): Frame-rate hardcoded at 1/60!'
 		
-		self.frameRate = 1.0/60
+		#self.frameRate = 1.0/60
 		
-		if( type(self.frameRate) is not float ):
-			print 'physEnv.init(): frame-rate must be a float!'
-			return
+#		if( type(self.frameRate) is not float ):
+#			print 'physEnv.init(): frame-rate must be a float!'
+#			return
 			
 		# Keep track of physnodes in here
 		self.physNodes_phys = []
@@ -87,7 +87,7 @@ class physEnv(viz.EventClass):
 		
 		numCycles = 20
 		
-		timeStep = (1.0/60) / numCycles
+		timeStep = viz.getFrameElapsed() / numCycles
 		
 		for idx in range(numCycles):
 			self.space.collide(self,self.detectCollisions)
@@ -408,17 +408,27 @@ class physNode():
 	
 	def remove(self):
 		
-		#self.parentRoom.physEnv.removeGeom(self.physGeom)
+		if( self.body ):
+			#ode.dBodyDestroy(self.body)
+			self.body = 0
+			pass
+			
+		if( self.geom ):
+			#ode.dGeomDestroy(self.geom)
+			self.geom = 0
 		
-		self.geom.setBody(None)
-		self.parentSpace.remove(self.geom)
 		
-		#self.parentWorld.remove()
-		#dBodyDestroy(dBodyID);
-		
-		# Remove kinematic body
-		del self.body
-		self.body = 0
+#		#self.parentRoom.physEnv.removeGeom(self.physGeom)
+#		
+#		self.geom.setBody(None)
+#		self.parentSpace.remove(self.geom)
+#		
+#		#self.parentWorld.remove()
+#		#dBodyDestroy(dBodyID);
+#		
+#		# Remove kinematic body
+#		del self.body
+#		self.body = 0
 		
 	def removeBody(self):
 		

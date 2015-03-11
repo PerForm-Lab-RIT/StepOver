@@ -43,6 +43,7 @@ class rigidObject(viz.EventClass):
 		
 		# Used to pre-translate rigid body by a set amount
 		# Here, it is converted from vizard to phasespace coordinates
+		print 'FIXME: In rigid body init, rigidOffset_worldXYZ is in PS coords! '
 		self.rigidOffset_worldXYZ = [-rigidOffset_worldXYZ[2],rigidOffset_worldXYZ[1],-rigidOffset_worldXYZ[0]]
 		
 		# B/C Phasespace has a flipped Z axis
@@ -112,7 +113,8 @@ class rigidObject(viz.EventClass):
 		print 'Mocap: Read ' + str(count) + ' lines from the rigid body file.'
 		if count == 0: print 'This is likely to cause OWL.init() to fail'
 	
-	def getMarkerPositions(self,alPSMarkers_midx):
+	def getMarkerPositionsPS_XYZ(self,alPSMarkers_midx):
+		''' Phasespce coordinates'''
 		
 		# Build list of updated marker positions in newPosWorldCoords
 		newPos_midx_GlobalXYZ = [];
@@ -147,7 +149,7 @@ class rigidObject(viz.EventClass):
 			#rof
 		else:
 			return newPos_midx_GlobalXYZ
-	
+		
 	def saveNewDefaults(self):
 		
 		fileObject = open(self.filePath + 'temp.rb','w')#self.fileName , 'w')
@@ -174,36 +176,38 @@ class rigidObject(viz.EventClass):
 
 		print "Rigid body definition written to file"	
 		
-	def resetRigid( self, alPSMarkers_midx  ):
+	def resetRigid( self, allPSMarkers_midx  ):
+#		
+#		# Build list of updated marker positions in newPosWorldCoords
+#		newPos_midx_GlobalXYZ = [];
+#		
+#		# Find markers that belong to the rigid tracker.
+#		# Their most recent position sensed on this frame is stored in newPos_midx_GlobalXYZH
+#		for oldMarkerIdx in range( 0, len(self.markerID_midx), 1 ):
+#			for newMarkerIdx in range( 0, len(alPSMarkers_midx), 1 ):
+#				
+#				# markerNumToID macro defined at top of file!
+#				oldRigidIDConverted = markerNumToID( self.trackerIdx, oldMarkerIdx );
+#				
+#				if( alPSMarkers_midx[newMarkerIdx].id == oldRigidIDConverted ):
+#					
+#					newPos_midx_GlobalXYZ.append( [ alPSMarkers_midx[newMarkerIdx].x, 
+#												alPSMarkers_midx[newMarkerIdx].y,
+#												alPSMarkers_midx[newMarkerIdx].z ] );
+#
+#		# Check to make sure all markers were seen
+#		if( len(newPos_midx_GlobalXYZ) < len(self.markerID_midx ) ):
+#			
+#			print "ResetRigid:  Error. Could not see all markers."
+#			
+#			for i in range(len(alPSMarkers_midx)):
+#				print ("  Visible Marker IDs: " + str(alPSMarkers_midx[i].id) );
+#			#rof
+#			
+#			return
 		
-		# Build list of updated marker positions in newPosWorldCoords
-		newPos_midx_GlobalXYZ = [];
+		newPos_midx_GlobalXYZ = self.getMarkerPositionsPS_XYZ(allPSMarkers_midx)
 		
-		# Find markers that belong to the rigid tracker.
-		# Their most position sensed on this frame is stored in newPos_midx_GlobalXYZH
-		for oldMarkerIdx in range( 0, len(self.markerID_midx), 1 ):
-			for newMarkerIdx in range( 0, len(alPSMarkers_midx), 1 ):
-				
-				# markerNumToID macro defined at top of file!
-				oldRigidIDConverted = markerNumToID( self.trackerIdx, oldMarkerIdx );
-				
-				if( alPSMarkers_midx[newMarkerIdx].id == oldRigidIDConverted ):
-					
-					newPos_midx_GlobalXYZ.append( [ alPSMarkers_midx[newMarkerIdx].x, 
-												alPSMarkers_midx[newMarkerIdx].y,
-												alPSMarkers_midx[newMarkerIdx].z ] );
-
-		# Check to make sure all markers were seen
-		if( len(newPos_midx_GlobalXYZ) < len(self.markerID_midx ) ):
-			
-			print "ResetRigid:  Error. Could not see all markers."
-			
-			for i in range(len(alPSMarkers_midx)):
-				print ("  Visible Marker IDs: " + str(alPSMarkers_midx[i].id) );
-			#rof
-			
-			return
-			
 		##################################################################################
 		#  Here's where we set the origin and frame of reference for a rigid body
 		# The origin is set by averaging over markers in avgMarkerList_midx
@@ -538,8 +542,18 @@ class phasespaceInterface(viz.EventClass):
 				if( condition > 0 and condition < self.owlParamMarkerCondThresh ):
 					return self.psPosToVizPos(pos_XYZ)
 				else:
-					# print 'Bad condition'
+					print 'getMarkerPosition: Bad condition'
 					return 0
+					#return [nan, nan, nan]
+					
+	def getMarkerCondition(self,markerID):
+		# Returns marker condition
+		
+		for mIdx in range(len(self.alPSMarkers_midx)):
+			if( self.alPSMarkers_midx[mIdx].id == self.markerServerID_mIdx[markerID] ):
+				
+				return self.alPSMarkers_midx[mIdx].cond
+					
 
 	def checkForRigid(self,fileName):
 		return( self.returnPointerToRigid(fileName) )
@@ -684,6 +698,27 @@ class phasespaceInterface(viz.EventClass):
 		
 	#fed
 		
+	def getRigidMarkerPositions( self, fileName ):
+		
+		rigidBody = self.returnPointerToRigid( fileName );
+		
+		if( rigidBody ):
+			
+			#if( self.mainViewUpdateAction ):
+			markerPosPS_XYZ = rigidBody.getMarkerPositionsPS_XYZ( self.alPSMarkers_midx );
+			markerPosViz_XYZ = []
+			for ps_XYZ in markerPosPS_XYZ: #mIdx in range(len(markerPosPS_XYZ )):
+				viz_XYZ = self.psPosToVizPos(ps_XYZ)
+				markerPosViz_XYZ.append(viz_XYZ)
+		else:
+			
+			print ('Error: Rigid body not initialized');
+			return
+			
+		return markerPosViz_XYZ
+		
+	#fed
+	
 	def saveRigid(self,fileName):
 		rigidBody = self.returnPointerToRigid(fileName)
 		

@@ -302,19 +302,22 @@ class visObj(viz.EventClass):
         
     def __del__(self):
         
-        #print 'Frame: ' + str(viz.getFrameNumber()) + 'Trying to remove object'
+        #print 'Frame: ' + str(viz.getFrameNumber()) + 'Trying to remove object A'
         
         # Remove physical component
         if( self.physNode ):
             self.physNode.remove()
         
+        #print 'Frame: ' + str(viz.getFrameNumber()) + 'Trying to remove object B'
         # Stop updating visNode
         if( self.updateAction ):
             self.updateAction.remove()
-            
+        
+        #print 'Frame: ' + str(viz.getFrameNumber()) + 'Trying to remove object C'
+        
         # Remove visual component
         self.visNode.remove()
-     
+        #print 'Frame: ' + str(viz.getFrameNumber()) + 'Trying to remove object D'
     def remove(self):
         self.__del__()
         
