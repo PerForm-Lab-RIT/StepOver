@@ -43,8 +43,8 @@ class rigidObject(viz.EventClass):
 		
 		# Used to pre-translate rigid body by a set amount
 		# Here, it is converted from vizard to phasespace coordinates
-		print 'FIXME: In rigid body init, rigidOffset_worldXYZ is in PS coords! '
-		self.rigidOffset_worldXYZ = [-rigidOffset_worldXYZ[2],rigidOffset_worldXYZ[1],-rigidOffset_worldXYZ[0]]
+		self.rigidOffset_worldXYZ = [rigidOffset_worldXYZ[0],rigidOffset_worldXYZ[1],-rigidOffset_worldXYZ[2]]
+		#[-rigidOffset_worldXYZ[2],rigidOffset_worldXYZ[1],-rigidOffset_worldXYZ[0]]
 		
 		# B/C Phasespace has a flipped Z axis
 		# transform mats must be converted.  
@@ -177,35 +177,7 @@ class rigidObject(viz.EventClass):
 		print "Rigid body definition written to file"	
 		
 	def resetRigid( self, allPSMarkers_midx  ):
-#		
-#		# Build list of updated marker positions in newPosWorldCoords
-#		newPos_midx_GlobalXYZ = [];
-#		
-#		# Find markers that belong to the rigid tracker.
-#		# Their most recent position sensed on this frame is stored in newPos_midx_GlobalXYZH
-#		for oldMarkerIdx in range( 0, len(self.markerID_midx), 1 ):
-#			for newMarkerIdx in range( 0, len(alPSMarkers_midx), 1 ):
-#				
-#				# markerNumToID macro defined at top of file!
-#				oldRigidIDConverted = markerNumToID( self.trackerIdx, oldMarkerIdx );
-#				
-#				if( alPSMarkers_midx[newMarkerIdx].id == oldRigidIDConverted ):
-#					
-#					newPos_midx_GlobalXYZ.append( [ alPSMarkers_midx[newMarkerIdx].x, 
-#												alPSMarkers_midx[newMarkerIdx].y,
-#												alPSMarkers_midx[newMarkerIdx].z ] );
-#
-#		# Check to make sure all markers were seen
-#		if( len(newPos_midx_GlobalXYZ) < len(self.markerID_midx ) ):
-#			
-#			print "ResetRigid:  Error. Could not see all markers."
-#			
-#			for i in range(len(alPSMarkers_midx)):
-#				print ("  Visible Marker IDs: " + str(alPSMarkers_midx[i].id) );
-#			#rof
-#			
-#			return
-		
+
 		newPos_midx_GlobalXYZ = self.getMarkerPositionsPS_XYZ(allPSMarkers_midx)
 		
 		##################################################################################
@@ -232,12 +204,13 @@ class rigidObject(viz.EventClass):
 		# Convert from world-based to rigid-body based frame of reference
 		newPosRigidCoords_mIdx_LocalXYZ = []
 		
+		# Note that rigid offset is converted here from Vizard coordinates into Phasespace coordinates
 		for i in range( 0, len(newPos_midx_GlobalXYZ), 1 ):
 			# ... also, offset origin by self.rigidOffset_worldXYZ ( in world coordinates ) 
-			newPosRigidCoords_mIdx_LocalXYZ.append( [ newPos_midx_GlobalXYZ[i][0]-center_GlobalXYZ[0] + self.rigidOffset_worldXYZ[0],
+			newPosRigidCoords_mIdx_LocalXYZ.append( [ newPos_midx_GlobalXYZ[i][0]-center_GlobalXYZ[0] - self.rigidOffset_worldXYZ[2],
 										newPos_midx_GlobalXYZ[i][1]-center_GlobalXYZ[1] + self.rigidOffset_worldXYZ[1],
-										newPos_midx_GlobalXYZ[i][2]-center_GlobalXYZ[2] + self.rigidOffset_worldXYZ[2], ] );
-										
+										newPos_midx_GlobalXYZ[i][2]-center_GlobalXYZ[2] - self.rigidOffset_worldXYZ[0], ] );
+
 		#rof
 			
 		# Update rigid body definition on the owl server
@@ -821,25 +794,16 @@ class phasespaceInterface(viz.EventClass):
 		
 	def psPosToVizPos(self,posPS_XYZ):
 		
-		# FLip Z axis and rotate basis CCW 90 degs
-				# Set rigid body transformation matrix
+		
+		
+#		# FLip Z axis and rotate basis CCW 90 degs
+		# Set rigid body transformation matrix
 		pos_XYZ = [  -posPS_XYZ[2]*self.scale[2] + self.origin[2],
 		posPS_XYZ[1]*self.scale[1] + self.origin[1],
 		-posPS_XYZ[0]*self.scale[0] + self.origin[0] ];
 		
-		#print str(self.origin[0]) + str(self.origin[1])+ str(self.origin[2])
+		return pos_XYZ
 		
-#		# Set rigid body transformation matrix
-#		pos_XYZ = [  posPS_XYZ[0]*self.scale[0] + self.origin[0],
-#		 posPS_XYZ[1]*self.scale[1] + self.origin[1],
-#		-posPS_XYZ[2]*self.scale[2] + self.origin[2] ];
-#		
-#		transformViz = viz.Transform()
-#		transformViz.postTrans(pos_XYZ)
-#		transformViz.postAxisAngle(0,1,0,90)
-		
-		return pos_XYZ#transformViz.getPosition()
-
 if __name__ == "__main__":
 	
 	import vizact

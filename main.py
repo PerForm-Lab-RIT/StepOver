@@ -164,7 +164,8 @@ class Experiment(viz.EventClass):
 			#eyeSphere = visEnv.visObj(self.room,'sphere',size=0.1,alpha=1)
 			#eyeSphere.visNode.setParent(self.room.objects)
 			
-			self.setupEyesAndFeet()
+			self.setupShutterGlasses()
+			self.setupFeet()
 			
 		##############################################################
 		##############################################################
@@ -458,10 +459,10 @@ class Experiment(viz.EventClass):
 				mocapSys.resetRigid('shutter')
 			elif key == 'L':
 				mocapSys.resetRigid('left')
-				#self.resizeFootBox('left')
+				self.resizeFootBox('left')
 			elif key == 'R':
 				mocapSys.resetRigid('right')
-				#self.resizeFootBox('right')
+				self.resizeFootBox('right')
 					
 			if( viz.key.isDown( viz.KEY_CONTROL_L )):
 				
@@ -770,21 +771,10 @@ class Experiment(viz.EventClass):
 		# Only write data if the experiment is ongoing
 		if( (self.currentTrial.approachingObs == False) ): # self.expInProgress is False) or (
 			return
-		
-#		try:
-			#now = datetime.datetime.now()
-			#dateTimeStr = str(now.hour) + ':' + str(now.minute) + ':' + str(now.second) + ':' + str(now.microsecond)
-			
+	
 		expDataString = self.getOutput()
-		self.expDataFile.write(expDataString)
-			
-#			if( self.config.sysCfg['use_eyetracking']):
-				
-#				eyeDataString = self.getEyeData()
-#				self.eyeDataFile.write(eyeDataString + '\n')
-#		except:
-#			a=1
-		
+		self.expDataFile.write(expDataString+ '\n')
+					
 		# Eyetracker data
 	
 	def registerWiimoteActions(self):
@@ -892,7 +882,7 @@ class Experiment(viz.EventClass):
 		else:
 			return 0
 					
-	def setupEyesAndFeet(self):
+	def setupShutterGlasses(self):
 
 		config = self.config
 		print 'Connecting mainview to eyesphere'
@@ -907,6 +897,9 @@ class Experiment(viz.EventClass):
 		shutterRigid = config.mocap.returnPointerToRigid('shutter')
 		self.config.virtualPlane.attachViewToGlasses(eyeSphere.visNode,shutterRigid)
 				
+	def setupFeet(self):
+		
+		config = self.config
 		leftFoot = self.room.leftFoot
 		leftFoot.setMocapRigidBody(config.mocap,'leftFoot')
 		leftFoot.toggleUpdateWithRigid()
@@ -944,10 +937,62 @@ class Experiment(viz.EventClass):
 			return
 			
 		mocap = self.config.mocap
-		# An array of 3 element arrays
-		# Position is in mm
-		markersOnRigidBody_mIdx_XYZ = mocap.getRigidMarkerPositions(footSide) 
 		
+		# An array of 3 element arrays
+		# Position is in mm, and in phasespace coordintes
+		#markersOnRigidBody_mIdx_psXYZ = mocap.getRigidMarkerPositions(footSide) 
+		#markersOnRigidBody_mIdx_vizXYZ = []
+
+		
+		markerZVals_mIdx = []
+		markerXVals_mIdx= []
+		
+		#footHeightFromGround = 0 
+		footRigid = mocap.returnPointerToRigid(footSide)
+		markerID_midx = footRigid.markerID_midx
+		
+		for mIdx in range(len(markerID_midx)):
+			
+			vizXYZ = mocap.getMarkerPosition(markerID_midx[mIdx])
+			
+			if( vizXYZ == 0):
+				print 'Could not see all markers on rigid body'
+				return
+				
+			markerXVals_mIdx.append(vizXYZ[0])
+			markerZVals_mIdx.append(vizXYZ[2])
+	
+		
+		sumOfMarkerHeights = 0
+		
+		for mIdx in footRigid.avgMarkerList_midx:
+			vizXYZ = mocap.getMarkerPosition(markerID_midx[mIdx])
+			sumOfMarkerHeights = sumOfMarkerHeights + vizXYZ[1]
+			
+		avgMarkerHeight = sumOfMarkerHeights / len(footRigid.avgMarkerList_midx)
+		
+		# one centimeter  buffer
+		footLength = max(markerXVals_mIdx) - min(markerXVals_mIdx) - .02
+		footHeight = avgMarkerHeight
+		footWidth = (max(markerZVals_mIdx) - min(markerZVals_mIdx))
+		
+		footLWH = [footLength, footWidth, footHeight]
+		
+		if( footSide == 'left' ):			
+			footObj = self.room.leftFoot
+		
+		elif( footSide == 'right' ):
+			footObj= self.room.rightFoot
+		
+		# Return the length, width and height
+		#footVizNode.size(
+		footObj.size = footLWH
+		
+		print 'Making basic visNode of size ' + str(footLWH)
+		footObj.visNode.remove()
+		footObj.makeBasicVisNode()
+		
+		#self.setupEyesAndFeet()
 			
 class eventFlag(viz.EventClass):
 	
@@ -993,7 +1038,7 @@ class eventFlag(viz.EventClass):
 			
 		elif( self.lastFrameUpdated == viz.getFrameNumber() ):
 			
-			#print 'Stopped attempt to overwrite status of ' + str(self.status) + ' with ' + str(status) + ' [overWriteBool=False]'
+		#print 'Stopped attempt to overwrite status of ' + str(self.status) + ' with ' + str(status) + ' [overWriteBool=False]'
 			pass
 		
 	def _resetEventFlag(self):
