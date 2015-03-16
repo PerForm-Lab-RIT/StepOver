@@ -147,7 +147,7 @@ class Experiment(viz.EventClass):
 		self.trialEndPosition = config.expCfg['experiment']['trialEndPosition']
 		self.metronomeTimeMS = config.expCfg['experiment']['metronomeTimeMS']
 		
-		self.collisionLocOnObs_XYZ = [nan,nan,nan]
+		#self.collisionLocOnObs_XYZ = [nan,nan,nan]
 		
 		################################################################
 		##  LInk up the hmd to the mainview
@@ -286,7 +286,6 @@ class Experiment(viz.EventClass):
 					# Remove box
 					self.currentTrial.waitingForGo = False
 					self.currentTrial.removeObs();
-					print 'LBP :> Remove Obs'
 					
 					#self.currentTrial.metronomeTimerObj.setEnabled(viz.TOGGLE);
 					#self.currentTrial.metronomeTimerObj = [];
@@ -299,6 +298,7 @@ class Experiment(viz.EventClass):
 				elif(self.currentTrial.goSignalGiven is True):
 					
 					print 'Starting trial ==> Type', self.currentTrial.trialType
+					self.eventFlag.setStatus(1)
 					self.currentTrial.approachingObs = True
 					
 					# Start data collection
@@ -336,22 +336,32 @@ class Experiment(viz.EventClass):
 				if( physNode1 == leftFoot.physNode and physNode2 == obstacle.physNode):
 
 					self.eventFlag.setStatus(4)
-					if ( obstacle.physNode.collisionPosLocal_XYZ):
-						self.collisionLocOnObs_XYZ = obstacle.physNode.collisionPosLocal_XYZ
-					elif( leftFoot.physNode.collisionPosLocal_XYZ ):
-						self.collisionLocOnObs_XYZ = leftFoot.physNode.collisionPosLocal_XYZ
-					print 'Collided Objects are Left Foot and Obstacle at\n', self.collisionLocOnObs_XYZ
+					
+					bouncePos_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
+					self.currentTrial.collisionLocGlobal_XYZ = bouncePos_XYZ
+					
+#					if ( obstacle.physNode.collisionPosLocal_XYZ ):
+#						self.collisionLocOnObs_XYZ = obstacle.physNode.collisionPosLocal_XYZ
+#					elif( leftFoot.physNode.collisionPosLocal_XYZ ):
+#						self.collisionLocOnObs_XYZ = leftFoot.physNode.collisionPosLocal_XYZ
+					
+					print 'Frame: ' + str(viz.getFrameNumber()) + ' collision at: ' + str(self.collisionLocOnObs_XYZ)
+					
+					#print 'Collided Objects are Left Foot and Obstacle at\n', self.collisionLocOnObs_XYZ
 					#self.currentTrial.removeObs()
 					viz.playSound(soundBank.beep)
 				
 				elif( physNode1 == rightFoot.physNode and physNode2 == obstacle.physNode ):
 					
 					self.eventFlag.setStatus(5)
-					if ( obstacle.physNode.collisionPosLocal_XYZ ):
-						self.collisionLocOnObs_XYZ = obstacle.physNode.collisionPosLocal_XYZ
-					elif (rightFoot.physNode.collisionPosLocal_XYZ):
-						self.collisionLocOnObs_XYZ = rightFoot.physNode.collisionPosLocal_XYZ
-					print 'Collided Objects are Right Foot and Obstacle at\n', self.collisionLocOnObs_XYZ
+					bouncePos_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
+					self.currentTrial.collisionLocGlobal_XYZ = bouncePos_XYZ
+					
+#					if ( obstacle.physNode.collisionPosLocal_XYZ ):
+#						self.collisionLocOnObs_XYZ = obstacle.physNode.collisionPosLocal_XYZ
+#					elif (rightFoot.physNode.collisionPosLocal_XYZ):
+#						self.collisionLocOnObs_XYZ = rightFoot.physNode.collisionPosLocal_XYZ
+					#print 'Collided Objects are Right Foot and Obstacle at\n', self.collisionLocOnObs_XYZ
 					#self.currentTrial.removeObs()
 					viz.playSound(soundBank.beep)
 			
@@ -527,13 +537,14 @@ class Experiment(viz.EventClass):
 		## FrameTime, Event Flag, Trial Type 
 		## =======================================================================================================				
 		outputString = 'frameTime %f ' % (viz.getFrameTime())
-		#
-		outputString = outputString + ' eventFlag %f ' % (self.eventFlag.status)
-		#if ( ( self.eventFlag == 3 ) or ( self.eventFlag == 4 ) or ( self.eventFlag == 5 ) ):
+		#87
+		
+		outputString = outputString + ' eventFlag %d ' % (self.eventFlag.status)
 		
 		#FIXME: Collision locatoin is not set correctly in _checkForCollisions
 		#if( self.eventFlag.status == 4 or self.eventFlag.status == 5 ):
-		outputString = outputString + ' collisionLocOnObs_XYZ [ %f %f %f ] ' % (self.collisionLocOnObs_XYZ[0], self.collisionLocOnObs_XYZ[1], self.collisionLocOnObs_XYZ[2])
+		collisionLocGlobal_XYZ = self.currentTrial.collisionLocGlobal_XYZ
+		outputString = outputString + ' collisionLocGlobal_XYZ [ %f %f %f ] ' % (collisionLocGlobal_XYZ[0], collisionLocGlobal_XYZ[1], collisionLocGlobal_XYZ[2])
 		
 		outputString = outputString + ' trialType %s ' % (self.currentTrial.trialType)
 
@@ -567,16 +578,29 @@ class Experiment(viz.EventClass):
 			rightFootQUAT_XYZW = rightFootMat.getQuat()
 			
 		else:
-			rightFootPos_XYZ = [None, None, None]
-			rightFootQUAT_XYZW = [None, None, None]
+			rightFootPos_XYZ = [nan, nan, nan]
+			rightFootQUAT_XYZW = [nan, nan, nan]
+		
+		outputString = outputString + '[ rightFootQUAT_WXYZ %f %f %f %f ] ' % ( rightFootQUAT_XYZW[0], rightFootQUAT_XYZW[1], rightFootQUAT_XYZW[2], rightFootQUAT_XYZW[3] )
+		
+		if( self.room.leftFoot ):
 			
-		#outputString = outputString + '[ RightFoot_XYZ %f %f %f ] ' % (rightFootPos_XYZ[0], rightFootPos_XYZ[1], rightFootPos_XYZ[2])		
-		#outputString = outputString + '< RightFootQUAT_WXYZ %f %f %f %f > ' % ( rightFootQUAT_XYZW[0], rightFootQUAT_XYZW[1], rightFootQUAT_XYZW[2], rightFootQUAT_XYZW[3] )
-		
-		
+			leftFootPos_XYZ = self.room.leftFoot.visNode.getPosition()
+			leftFootMat = self.room.leftFoot.visNode.getMatrix()
+			leftFootQUAT_XYZW = leftFootMat.getQuat()
+			
+		else:
+			leftFootPos_XYZ = [nan, nan, nan]
+			leftFootQUAT_XYZW = [nan, nan, nan]
+			
+		outputString = outputString + '[ leftFootQUAT_XYZW %f %f %f %f ] ' % ( leftFootQUAT_XYZW[0], leftFootQUAT_XYZW[1], leftFootQUAT_XYZW[2], leftFootQUAT_XYZW[3] )
+
 		MarkerPos = []
 		
 		#FIXME: Hardcoded foot markers numbers for data output.
+
+		self.config.sysCfg['phasespace']['owlParamMarkerCount']
+		
 		for i in range(17):
 			
 			markerCondition = self.config.mocap.getMarkerCondition(i)
@@ -629,15 +653,6 @@ class Experiment(viz.EventClass):
 			outputString = outputString + '[ %f %f %f ] ' % (SpinalMarker[0], SpinalMarker[1], SpinalMarker[2])		
 		outputString = outputString + '> '
 		
-		if( self.room.rightFoot ):
-			
-			leftFootPos_XYZ = self.room.leftFoot.visNode.getPosition()
-			leftFootMat = self.room.leftFoot.visNode.getMatrix()
-			leftFootQUAT_XYZW = leftFootMat.getQuat()
-			
-		else:
-			leftFootPos_XYZ = [None, None, None]
-			leftFootQUAT_XYZW = [None, None, None]
 			
 		#outputString = outputString + '[ LeftFoot_XYZ %f %f %f ] ' % (leftFootPos_XYZ[0], leftFootPos_XYZ[1], leftFootPos_XYZ[2])
 		
@@ -852,11 +867,12 @@ class Experiment(viz.EventClass):
 		#self.config.obsHeightLegRatio = 100
 
 		#prompt for a string
-		self.config.obsHeightLegRatio = vizinput.input('Enter leg length (cm):', value = float(90))
+		#self.config.obsHeightLegRatio 
+		self.config.legLengthCM = vizinput.input('Enter leg length (cm):', value = float(90))
 		
 		try:
 			# Test if it's an integer
-			intValue = int(self.config.obsHeightLegRatio)
+			intValue = int(self.config.legLengthCM)
 		except ValueError:
 			viz.message( 'Please enter a valid integer')
 			self.inputLegLength()
@@ -1001,7 +1017,7 @@ class eventFlag(viz.EventClass):
 		################################################################
 		##  Eventflag
 		
-		# 1 
+		# 1 Trial Start
 		# 2 
 		# 3 
 		# 4 Right foot collides with obstacle
@@ -1023,7 +1039,7 @@ class eventFlag(viz.EventClass):
 		
 		if( self.lastFrameUpdated != viz.getFrameNumber() ):
 			
-			#print 'Setting status to' + str(status)
+			#print 'Setting status to ' + str(status)
 			
 			self.status = status
 			self.lastFrameUpdated = viz.getFrameNumber()
@@ -1037,9 +1053,9 @@ class eventFlag(viz.EventClass):
 		
 			
 		elif( self.lastFrameUpdated == viz.getFrameNumber() ):
-			
-		#print 'Stopped attempt to overwrite status of ' + str(self.status) + ' with ' + str(status) + ' [overWriteBool=False]'
 			pass
+			#print 'Stopped attempt to overwrite status of ' + str(self.status) + ' with ' + str(status) + ' [overWriteBool=False]'
+
 		
 	def _resetEventFlag(self):
 		
@@ -1107,7 +1123,7 @@ class trial(viz.EventClass):
 	def __init__(self,config=None,trialType='t1', room = None):
 		
 		#viz.EventClass.__init__(self)
-		
+		self.config = config
 		self.trialType = trialType
 		self.room = room
 		
@@ -1122,12 +1138,14 @@ class trial(viz.EventClass):
 		self.metronomeTimerObj = []
 		self.trialTimeoutTimerObj = []
 		
-		self.legLengthCM = config.expCfg['experiment']['legLengthCM']		
+		#self.legLengthCM = config.expCfg['experiment']['legLengthCM']		
 		self.obsHeightM = []
 		
 		# Object placeholders
 		self.obsObj = -1
 		self.objectSizeText = -1
+		
+		self.collisionLocGlobal_XYZ = [nan, nan, nan]
 		
 		self.lineObj = -1
 		#self.totalTrialNumber = 
@@ -1218,8 +1236,10 @@ class trial(viz.EventClass):
 		
 		#print 'Creating object at ' + str(obsLoc)
 		
-		self.obsHeightM = self.legLengthCM * self.obsHeightLegRatio / 100
-		obsSize = [0.1,1,self.obsHeightM] # lwh
+		self.obsHeightM = self.config.legLengthCM * self.obsHeightLegRatio / 100
+		#print str(self.obsHeightLegRatio) + ' + ' + str(self.config.legLengthCM) + ' = ' + str(self.obsHeightM)
+		
+		obsSize = [0.015,1.2,self.obsHeightM] # lwh
 		obsLoc = [self.obsXLoc,self.obsHeightM/2,self.obsZLoc]
 		
 		self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
@@ -1231,11 +1251,11 @@ class trial(viz.EventClass):
 			self.obsObj.visNode.disable(viz.RENDERING)
 			# Draw a line on the ground
 			lineHeight = 0.001
-			lineSize = [0.01,1,lineHeight] # lwh
+			lineSize = [0.015,5.0,lineHeight] # lwh
 			obsLoc = [self.obsXLoc,lineHeight/2,self.obsZLoc]
 			self.lineObj = visEnv.visObj(room,'box',lineSize,obsLoc,self.obsColor_RGB)
 			
-			if( self.trialType == '	t4' ):
+			if( self.trialType == 't4' ):
 				displayText = 'Short'
 				#print 'Obs Height =>', displayText, self.trialType
 			elif( self.trialType == 't5' ):
@@ -1245,7 +1265,8 @@ class trial(viz.EventClass):
 				displayText = 'Tall'
 				#print 'Obs Height =>', displayText, self.trialType
 			else:
-				print 'Object height invalid!'
+				print 'Object height invalid! Trial Type :', self.trialType
+				displayText = 'Unknown!!'
 				return
 				
 			self.objectSizeText = viz.addText3D(displayText)
@@ -1254,7 +1275,8 @@ class trial(viz.EventClass):
 			scale = 0.1
 			self.objectSizeText.setScale([scale ,scale ,scale])
 		else:
-			print'Placing Obstacle at', obsLoc, 'size', obsSize
+			pass
+			#print'Placing Obstacle at', obsLoc, 'size', obsSize
 		###############
 #		if( self.objIsVirtual == True ):
 #			
@@ -1306,7 +1328,6 @@ class trial(viz.EventClass):
 		if( self.obsObj != -1):
 			self.obsObj.remove()		
 			self.obsObj = -1
-			print 'removeObs: Obstacle removed'
 		
 		if( self.lineObj != -1):
 			self.lineObj.remove()		

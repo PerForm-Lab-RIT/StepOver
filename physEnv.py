@@ -170,7 +170,16 @@ class physEnv(viz.EventClass):
 			physNode2 = self.returnPointerToPhysNode(geom2)
 			
 			#  Note that, for some reason, the ball is always geom  1
-			if (physNode1 is None) is False and (physNode2 is None) is False:
+			if (physNode1 is None) == False and (physNode2 is None) == False:
+				
+				# Set collision position in local coordinates of body 2
+#				try:
+#					physNode1.collisionPosLocal_XYZ = body2.getPosRelPoint(body1.getPosition())
+#				except:
+#					a=1
+
+#				if( geom1.getBody() and geom2.getBody() ):
+#					physNode1.collisionPosLocal_XYZ = body2.getPosRelPoint(body1.getPosition())
 				
 				#####################################################################
 				## Funct(geom): Return physnode that geom corresponds to
@@ -205,6 +214,7 @@ class physEnv(viz.EventClass):
 						# Ball always seems to be be the first geom
 						physNode1.collisionPosLocal_XYZ = body2.getPosRelPoint(body1.getPosition())
 				else:
+					
 					
 					# This determines the dynamics of this particular collision / contact
 					contactObject.setBounce(physNode1.bounciness * physNode2.bounciness ) # Coefficient of restitution
@@ -248,7 +258,7 @@ class physNode():
 		
 		# A list of bodies that it will stick to upon collision
 		self.stickTo_gIdx = []
-		self.collisionPosLocal_XYZ = []
+		self.collisionPosLocal_XYZ = 0
 		
 		if shape == 'plane':
 			
