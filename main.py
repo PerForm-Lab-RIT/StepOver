@@ -146,9 +146,7 @@ class Experiment(viz.EventClass):
 		self.numClicksBeforeGo = config.expCfg['experiment']['numClicksBeforeGo']
 		self.trialEndPosition = config.expCfg['experiment']['trialEndPosition']
 		self.metronomeTimeMS = config.expCfg['experiment']['metronomeTimeMS']
-		
-		#self.collisionLocOnObs_XYZ = [nan,nan,nan]
-		
+				
 		################################################################
 		##  LInk up the hmd to the mainview
 		
@@ -300,6 +298,7 @@ class Experiment(viz.EventClass):
 					print 'Starting trial ==> Type', self.currentTrial.trialType
 					self.eventFlag.setStatus(1)
 					self.currentTrial.approachingObs = True
+					self.eventFlag.setStatus(6)
 					
 					# Start data collection
 					viz.playSound(soundBank.bubblePop)
@@ -317,7 +316,7 @@ class Experiment(viz.EventClass):
 		
 		thePhysEnv = self.room.physEnv;
 		
-		if( thePhysEnv.collisionDetected == False ): 
+		if( ( thePhysEnv.collisionDetected == False ) or ( self.expInProgress == False ) ): 
 			# No collisions this time!
 			return
 		
@@ -425,10 +424,6 @@ class Experiment(viz.EventClass):
 		"""
 		Interactive commands can be given via the keyboard. Some are provided here. You'll likely want to add more.
 		"""
-		if key == 'm':
-			print 'Data Recording Starts \n'
-			self.expInProgress = True;
-			
 		
 		mocapSys = self.config.mocap;
 		
@@ -559,42 +554,6 @@ class Experiment(viz.EventClass):
 		#viewPos_XYZ = viz.MainView.getPosition()
 		#outputString = outputString + '[ viewPos_XYZ %f %f %f ] ' % (viewPos_XYZ[0],viewPos_XYZ[1],viewPos_XYZ[2])
 		
-		## =======================================================================================================
-		## Left and Right Foot Position
-		## =======================================================================================================
-		rightFootPos_XYZ = []
-		rightFootQUAT_XYZW = []
-		leftFootPos_XYZ = []
-		leftFootQUAT_XYZW = []
-
-		# TODO: We can calculate each foot Velocity here. (Instead of doing it later offline)
-		#rightFootVel_XYZ = []
-		#leftFootVel_XYZ = []
-		
-		if( self.room.rightFoot ):
-			
-			rightFootPos_XYZ = self.room.rightFoot.visNode.getPosition()
-			rightFootMat = self.room.rightFoot.visNode.getMatrix()
-			rightFootQUAT_XYZW = rightFootMat.getQuat()
-			
-		else:
-			rightFootPos_XYZ = [nan, nan, nan]
-			rightFootQUAT_XYZW = [nan, nan, nan]
-		
-		outputString = outputString + '[ rightFootQUAT_WXYZ %f %f %f %f ] ' % ( rightFootQUAT_XYZW[0], rightFootQUAT_XYZW[1], rightFootQUAT_XYZW[2], rightFootQUAT_XYZW[3] )
-		
-		if( self.room.leftFoot ):
-			
-			leftFootPos_XYZ = self.room.leftFoot.visNode.getPosition()
-			leftFootMat = self.room.leftFoot.visNode.getMatrix()
-			leftFootQUAT_XYZW = leftFootMat.getQuat()
-			
-		else:
-			leftFootPos_XYZ = [nan, nan, nan]
-			leftFootQUAT_XYZW = [nan, nan, nan]
-			
-		outputString = outputString + '[ leftFootQUAT_XYZW %f %f %f %f ] ' % ( leftFootQUAT_XYZW[0], leftFootQUAT_XYZW[1], leftFootQUAT_XYZW[2], leftFootQUAT_XYZW[3] )
-
 		MarkerPos = []
 		
 		#FIXME: Hardcoded foot markers numbers for data output.
@@ -652,11 +611,46 @@ class Experiment(viz.EventClass):
 			outputString = outputString + 'S%d ' %(i)
 			outputString = outputString + '[ %f %f %f ] ' % (SpinalMarker[0], SpinalMarker[1], SpinalMarker[2])		
 		outputString = outputString + '> '
+
+		## =======================================================================================================
+		## Left and Right Foot Position & Quaternion
+		## =======================================================================================================
+		rightFootPos_XYZ = []
+		rightFootQUAT_XYZW = []
+		leftFootPos_XYZ = []
+		leftFootQUAT_XYZW = []
+
+		# TODO: We can calculate each foot Velocity here. (Instead of doing it later offline)
+		#rightFootVel_XYZ = []
+		#leftFootVel_XYZ = []
 		
+		if( self.room.rightFoot ):
+			
+			rightFootPos_XYZ = self.room.rightFoot.visNode.getPosition()
+			rightFootMat = self.room.rightFoot.visNode.getMatrix()
+			rightFootQUAT_XYZW = rightFootMat.getQuat()
+			
+		else:
+			rightFootPos_XYZ = [None, None, None]
+			rightFootQUAT_XYZW = [None, None, None]
+			
+		#outputString = outputString + '[ RightFoot_XYZ %f %f %f ] ' % (rightFootPos_XYZ[0], rightFootPos_XYZ[1], rightFootPos_XYZ[2])		
+		outputString = outputString + '[ RightFootQUAT_XYZW %f %f %f %f ] ' % ( rightFootQUAT_XYZW[0], rightFootQUAT_XYZW[1], rightFootQUAT_XYZW[2], rightFootQUAT_XYZW[3] )
+
+		if( self.room.leftFoot ):
+			
+			leftFootPos_XYZ = self.room.leftFoot.visNode.getPosition()
+			leftFootMat = self.room.leftFoot.visNode.getMatrix()
+			leftFootQUAT_XYZW = leftFootMat.getQuat()
+			
+		else:
+			leftFootPos_XYZ = [None, None, None]
+			leftFootQUAT_XYZW = [None, None, None]
 			
 		#outputString = outputString + '[ LeftFoot_XYZ %f %f %f ] ' % (leftFootPos_XYZ[0], leftFootPos_XYZ[1], leftFootPos_XYZ[2])
 		
-		#outputString = outputString + '< LeftFootQUAT_WXYZ %f %f %f %f > ' % ( leftFootQUAT_XYZW[0], leftFootQUAT_XYZW[1], leftFootQUAT_XYZW[2], leftFootQUAT_XYZW[3] )
+		outputString = outputString + '[ LeftFootQUAT_XYZW %f %f %f %f ] ' % ( leftFootQUAT_XYZW[0], leftFootQUAT_XYZW[1], leftFootQUAT_XYZW[2], leftFootQUAT_XYZW[3] )
+		outputString = outputString + ' WalkingDirection %d ' % (self.room.isWalkingUpAxis)
 		
 		return outputString #%f %d' % (viz.getFrameTime(), self.inCalibrateMode)
 		
@@ -742,9 +736,9 @@ class Experiment(viz.EventClass):
 			## Play sound
 			viz.playSound(soundBank.cowbell)
 			## Remove obstacle
-			print 'End of Trial :> Attempting to remove Obs'
+			#print 'End of Trial :> Attempting to remove Obs'
 			self.currentTrial.removeObs()
-			print 'End of Trial :> Remove Obs'
+			#print 'End of Trial :> Remove Obs'
 		
 			## Stop timers
 			if( type(self.currentTrial.metronomeTimerObj) is not list ):			
@@ -756,7 +750,6 @@ class Experiment(viz.EventClass):
 			if( type(self.currentTrial.trialTimeoutTimerObj) is not list ):			
 				self.currentTrial.trialTimeoutTimerObj.remove()
 			
-			self.eventFlag.setStatus(6)
 			
 		if( self.trialNumber == endOfTrialList ):
 			
@@ -784,13 +777,11 @@ class Experiment(viz.EventClass):
 	def writeDataToText(self):
 
 		# Only write data if the experiment is ongoing
-		if( (self.currentTrial.approachingObs == False) ): # self.expInProgress is False) or (
+		if( (self.currentTrial.approachingObs == False) or (self.expInProgress == False) ):
 			return
 	
 		expDataString = self.getOutput()
-		self.expDataFile.write(expDataString+ '\n')
-					
-		# Eyetracker data
+		self.expDataFile.write(expDataString + '\n')
 	
 	def registerWiimoteActions(self):
 				
@@ -859,6 +850,8 @@ class Experiment(viz.EventClass):
 			self.currentTrial.metronomeTimerObj.remove()
 
 		viz.playSound(soundBank.beep)
+		# Change the Obstacle Color to Green as a visual feedback for the subject
+		self.currentTrial.obsObj.setColor(viz.GREEN)
 		
 		#self.currentTrial.metronomeTimerObj = vizact.ontimer(self.metronomeTimeMS/1000,self.metronomeHighTic)
 		
@@ -917,15 +910,16 @@ class Experiment(viz.EventClass):
 		
 		config = self.config
 		leftFoot = self.room.leftFoot
+		leftFoot.visNode.color([0, 0, .3])
 		leftFoot.setMocapRigidBody(config.mocap,'leftFoot')
 		leftFoot.toggleUpdateWithRigid()
 		leftFoot.enablePhysNode()
 		leftFoot.toggleUpdatePhysWithVis()
 		#leftFoot.visNode.disable(viz.RENDERING)
 		leftFoot.visNode.visible(viz.ON)
-
 		
 		rightFoot = self.room.rightFoot
+		rightFoot.visNode.color([0.5, 0, 0])
 		rightFoot.setMocapRigidBody(config.mocap,'rightFoot')
 		rightFoot.toggleUpdateWithRigid()
 		rightFoot.enablePhysNode()
@@ -1098,7 +1092,7 @@ class block():
 		for typeIdx in range(len(self.trialTypesInBlock)):
 			for count in range(self.numOfEachTrialType_type[typeIdx]):
 				self.trialTypeList_tr.append(self.trialTypesInBlock[typeIdx])
-		
+		print 'Trial Type List = {', self.trialTypeList_tr,'}'
 		# Randomize trial order
 		from random import shuffle
 		shuffle(self.trialTypeList_tr)
@@ -1275,49 +1269,7 @@ class trial(viz.EventClass):
 			scale = 0.1
 			self.objectSizeText.setScale([scale ,scale ,scale])
 		else:
-			pass
-			#print'Placing Obstacle at', obsLoc, 'size', obsSize
-		###############
-#		if( self.objIsVirtual == True ):
-#			
-#			self.obsHeightM = self.legLengthCM * self.obsHeightLegRatio / 100
-#			obsSize = [0.1,1,self.obsHeightM] # lwh
-#			obsLoc = [self.obsXLoc,self.obsHeightM/2,self.obsZLoc]
-#					
-#			#self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
-#		else:
-#			
-#			if( self.trialType == '	t4' ):
-#				displayText = 'Short'
-#				print 'Obs Height =>', displayText, self.trialType
-#			elif( self.trialType == 't5' ):
-#				displayText = 'Med'
-#				print 'Obs Height =>', displayText, self.trialType
-#			else: # ( self.trialType == 't6' )
-#				displayText = 'Tall'
-#				print 'Obs Height =>', displayText, self.trialType
-#			
-#			# Fix Me : Kamran : It seems here the Height is being overwritten which is wrong
-#			#self.obsHeightM = 0.001
-#			self.obsHeightM = self.legLengthCM * self.obsHeightLegRatio / 100
-#			obsSize = [0.1,1,self.obsHeightM] # lwh
-#			obsLoc = [self.obsXLoc,self.obsHeightM/2,self.obsZLoc]
-#
-#			self.objectSizeText = viz.addText3D(displayText)
-#			self.objectSizeText.setEuler([-90,90,0], viz.ABS_GLOBAL)
-#			self.objectSizeText.setPosition([-1.,.001,1.3],viz.ABS_GLOBAL)
-#			scale = 0.1
-#			self.objectSizeText.setScale([scale ,scale ,scale])
-#
-#		if ( self.room.isWalkingUpAxis ):
-#			obsLoc[2] = obsLoc[2] - self.room.offsetDistance + self.room.standingBox.getPosition()[2]
-#		else:
-#			obsLoc[2] = obsLoc[2] + self.room.offsetDistance + self.room.standingBox.getPosition()[2]
-#
-#		
-#		self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
-#		self.obsObj.enablePhysNode()
-#		
+			print'Placing Obstacle at', obsLoc, 'size', obsSize
 
 	def removeObs(self):
 
