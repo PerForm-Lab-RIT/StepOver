@@ -173,13 +173,10 @@ class physEnv(viz.EventClass):
 			if (physNode1 is None) == False and (physNode2 is None) == False:
 				
 				# Set collision position in local coordinates of body 2
-#				try:
-#					physNode1.collisionPosLocal_XYZ = body2.getPosRelPoint(body1.getPosition())
-#				except:
-#					a=1
+				#physNode1.collisionPosLocal_XYZ = body2.getPosRelPoint(body1.getPosition())
 
-#				if( geom1.getBody() and geom2.getBody() ):
-#					physNode1.collisionPosLocal_XYZ = body2.getPosRelPoint(body1.getPosition())
+				if( geom1.getBody() and geom2.getBody() ):
+					physNode1.collisionPosLocal_XYZ = body2.getPosRelPoint(body1.getPosition())
 				
 				#####################################################################
 				## Funct(geom): Return physnode that geom corresponds to

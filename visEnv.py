@@ -182,10 +182,15 @@ class room():
         #viz.MainView.get
         self.lightSource = viz.addLight() 
         self.lightSource.enable() 
-        self.lightSource.position(0, self.ceilingHeight, 0) 
+        self.lightSource.position(0, self.ceilingHeight, 5) 
         self.lightSource.spread(180) 
         self.lightSource.intensity(2)
-    
+        
+#        self.lightSource2 = viz.addLight() 
+#        self.lightSource2.enable() 
+#        self.lightSource2.position(0, self.ceilingHeight, -5) 
+#        self.lightSource2.spread(180) 
+#        self.lightSource2.intensity(2)
         
         ### ADD A SHADOW
         #SHADOW_RES = 256*10

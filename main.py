@@ -17,6 +17,8 @@ import winsound
 import virtualPlane
 import vizinput
 
+from obstacleClass import obstacleObj
+
 expConfigFileName = 'exampleExpConfig.cfg'
 
 ft = .3048
@@ -325,7 +327,7 @@ class Experiment(viz.EventClass):
 		
 		if( self.currentTrial.approachingObs == True ):
 			
-			obstacle = self.currentTrial.obsObj
+			obstacle = self.currentTrial.obsObj.collisionBox
 			
 			for idx in range(len(thePhysEnv.collisionList_idx_physNodes)):
 				
@@ -337,14 +339,9 @@ class Experiment(viz.EventClass):
 					self.eventFlag.setStatus(4)
 					
 					bouncePos_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
-					self.currentTrial.collisionLocGlobal_XYZ = bouncePos_XYZ
+					self.collisionLocOnObs_XYZ = obstacle.physNode.collisionPosLocal_XYZ
 					
-#					if ( obstacle.physNode.collisionPosLocal_XYZ ):
-#						self.collisionLocOnObs_XYZ = obstacle.physNode.collisionPosLocal_XYZ
-#					elif( leftFoot.physNode.collisionPosLocal_XYZ ):
-#						self.collisionLocOnObs_XYZ = leftFoot.physNode.collisionPosLocal_XYZ
-					
-					print 'Frame: ' + str(viz.getFrameNumber()) + ' collision at: ' + str(self.collisionLocOnObs_XYZ)
+					#print 'Frame: ' + str(viz.getFrameNumber()) + ' collision at: ' + str(self.collisionLocOnObs_XYZ)
 					
 					#print 'Collided Objects are Left Foot and Obstacle at\n', self.collisionLocOnObs_XYZ
 					#self.currentTrial.removeObs()
@@ -354,12 +351,9 @@ class Experiment(viz.EventClass):
 					
 					self.eventFlag.setStatus(5)
 					bouncePos_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
-					self.currentTrial.collisionLocGlobal_XYZ = bouncePos_XYZ
+
+					self.collisionLocOnObs_XYZ = obstacle.physNode.collisionPosLocal_XYZ
 					
-#					if ( obstacle.physNode.collisionPosLocal_XYZ ):
-#						self.collisionLocOnObs_XYZ = obstacle.physNode.collisionPosLocal_XYZ
-#					elif (rightFoot.physNode.collisionPosLocal_XYZ):
-#						self.collisionLocOnObs_XYZ = rightFoot.physNode.collisionPosLocal_XYZ
 					#print 'Collided Objects are Right Foot and Obstacle at\n', self.collisionLocOnObs_XYZ
 					#self.currentTrial.removeObs()
 					viz.playSound(soundBank.beep)
@@ -538,8 +532,8 @@ class Experiment(viz.EventClass):
 		
 		#FIXME: Collision locatoin is not set correctly in _checkForCollisions
 		#if( self.eventFlag.status == 4 or self.eventFlag.status == 5 ):
-		collisionLocGlobal_XYZ = self.currentTrial.collisionLocGlobal_XYZ
-		outputString = outputString + ' collisionLocGlobal_XYZ [ %f %f %f ] ' % (collisionLocGlobal_XYZ[0], collisionLocGlobal_XYZ[1], collisionLocGlobal_XYZ[2])
+		collisionPosLocal_XYZ = self.currentTrial.collisionPosLocal_XYZ
+		outputString = outputString + ' collisionPosLocal_XYZ [ %f %f %f ] ' % (collisionPosLocal_XYZ[0], collisionPosLocal_XYZ[1], collisionPosLocal_XYZ[2])
 		
 		outputString = outputString + ' trialType %s ' % (self.currentTrial.trialType)
 
@@ -654,48 +648,7 @@ class Experiment(viz.EventClass):
 		
 		return outputString #%f %d' % (viz.getFrameTime(), self.inCalibrateMode)
 		
-	def getEyeData(self):
-		
-		# Legend:
-		# ** for 1 var
-		# () for 2 vars
-		# [] for 3 vars
-		# <> for 4 vars
-		# @@ for 16 vars (view and projection matrices)
-
-		outputString = ''		
-
-		class VPX_RealType(Structure):
-			 _fields_ = [("x", c_float),("y", c_float)]
-
-		## Position
-		arrington = self.config.eyeTrackingCal.arrington;
-		
-		#eyePos_XY = pyArr.getPosition(self.arrington.RAW)
-		#outputString = outputString + '( eyePos_XY %f %f ) ' %(eyePos_XY[0],eyePos_XY[1])
-		
-		Eye_A  = c_int(0)
-
-		eyePos = VPX_RealType()
-		eyePosPointer = pointer(eyePos)
-		
-		arrington.VPX_GetGazePoint2(Eye_A ,eyePosPointer)
-		outputString = outputString + '( eyePos %f  %f ) ' % (eyePos.x, eyePos.y)
-		
-		## Time
-		eyeTime = c_double();
-		eyeTimePointer = pointer(eyeTime)		
-		arrington.VPX_GetDataTime2(Eye_A ,eyeTimePointer)
-		outputString = outputString + '* eyeDataTime %f * ' % eyeTime.value
-		
-		## Quality
-		eyeQual = c_int();
-		eyeQualPointer = pointer(eyeQual)		
-		arrington.VPX_GetDataQuality2(Eye_A ,eyeQualPointer)
-		outputString = outputString + '* eyeQuality %i * ' % eyeQual.value
-		
-		return outputString
-
+	
 	def toggleWalkingDirection(self):
 		print 'Changing Direction From ' + str(self.room.isWalkingUpAxis)+' to ' + str(not(self.room.isWalkingUpAxis))
 		self.room.isWalkingUpAxis = not(self.room.isWalkingUpAxis)
@@ -851,7 +804,7 @@ class Experiment(viz.EventClass):
 
 		viz.playSound(soundBank.beep)
 		# Change the Obstacle Color to Green as a visual feedback for the subject
-		self.currentTrial.obsObj.setColor(viz.GREEN)
+		self.currentTrial.obsObj.setColor(viz.WHITE)
 		
 		#self.currentTrial.metronomeTimerObj = vizact.ontimer(self.metronomeTimeMS/1000,self.metronomeHighTic)
 		
@@ -954,35 +907,30 @@ class Experiment(viz.EventClass):
 		#markersOnRigidBody_mIdx_vizXYZ = []
 
 		
-		markerZVals_mIdx = []
-		markerXVals_mIdx= []
+		#markerZVals_mIdx = []
+		#markerXVals_mIdx= []
 		
-		#footHeightFromGround = 0 
+		footHeightFromGround = 0 
 		footRigid = mocap.returnPointerToRigid(footSide)
-		markerID_midx = footRigid.markerID_midx
-		
-		for mIdx in range(len(markerID_midx)):
-			
-			vizXYZ = mocap.getMarkerPosition(markerID_midx[mIdx])
-			
-			if( vizXYZ == 0):
-				print 'Could not see all markers on rigid body'
-				return
-				
-			markerXVals_mIdx.append(vizXYZ[0])
-			markerZVals_mIdx.append(vizXYZ[2])
 	
-		
+		markerPosViz_mIdx_XYZ = mocap.getRigidMarkerPositions(footSide)
+
+		markerXVals_mIdx = [markerPosViz_mIdx_XYZ[mIdx][0] for mIdx in range(len(markerPosViz_mIdx_XYZ))]
+		markerZVals_mIdx = [markerPosViz_mIdx_XYZ[mIdx][2] for mIdx in range(len(markerPosViz_mIdx_XYZ))]
+
+		if( markerPosViz_mIdx_XYZ == -1 ): # or len(markerPosViz_mIdx_XYZ) < expected number
+			print 'Error: Could not see all foot markers'
+			return
+			
 		sumOfMarkerHeights = 0
 		
 		for mIdx in footRigid.avgMarkerList_midx:
-			vizXYZ = mocap.getMarkerPosition(markerID_midx[mIdx])
-			sumOfMarkerHeights = sumOfMarkerHeights + vizXYZ[1]
+			sumOfMarkerHeights = sumOfMarkerHeights + markerPosViz_mIdx_XYZ[mIdx][1]
 			
 		avgMarkerHeight = sumOfMarkerHeights / len(footRigid.avgMarkerList_midx)
 		
 		# one centimeter  buffer
-		footLength = max(markerXVals_mIdx) - min(markerXVals_mIdx) - .02
+		footLength = max(markerXVals_mIdx) - min(markerXVals_mIdx)
 		footHeight = avgMarkerHeight
 		footWidth = (max(markerZVals_mIdx) - min(markerZVals_mIdx))
 		
@@ -1227,22 +1175,26 @@ class trial(viz.EventClass):
 		
 			
 	def placeObs(self,room):
+		#experimentObject.currentTrial.obsObj.collisionBox.physNode.body.getPosition()
 		
 		#print 'Creating object at ' + str(obsLoc)
 		
 		self.obsHeightM = self.config.legLengthCM * self.obsHeightLegRatio / 100
 		#print str(self.obsHeightLegRatio) + ' + ' + str(self.config.legLengthCM) + ' = ' + str(self.obsHeightM)
 		
-		obsSize = [0.015,1.2,self.obsHeightM] # lwh
-		obsLoc = [self.obsXLoc,self.obsHeightM/2,self.obsZLoc]
+		#obsSize = [0.015,1.2,self.obsHeightM] # lwh
+		obsLoc = [self.obsXLoc,0,self.obsZLoc]
 		
-		self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
-		self.obsObj.enablePhysNode()
-		
+		import obstacleClass
+		#self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
+		#self.obsObj.enablePhysNode()
 		
 		if( self.objIsVirtual == False ):
+
+			self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
 			
 			self.obsObj.visNode.disable(viz.RENDERING)
+			
 			# Draw a line on the ground
 			lineHeight = 0.001
 			lineSize = [0.015,5.0,lineHeight] # lwh
@@ -1268,8 +1220,12 @@ class trial(viz.EventClass):
 			self.objectSizeText.setPosition([-1.,.001,1.3],viz.ABS_GLOBAL)
 			scale = 0.1
 			self.objectSizeText.setScale([scale ,scale ,scale])
+		
 		else:
-			print'Placing Obstacle at', obsLoc, 'size', obsSize
+			
+			self.obsObj = obstacleObj(room,self.obsHeightM,obsLoc)
+			
+			print'Placing Obstacle at', obsLoc, 'height', self.obsHeightM
 
 	def removeObs(self):
 
@@ -1355,7 +1311,4 @@ if( experimentObject.hmdLinkedToView == False ):
 	#viz.mouse.setVisible(False)
 	
 	
-
-	
-	
-	
+vizact.onkeydown('b',experimentObject.config.mocap.getRigidMarkerPositions,'right')

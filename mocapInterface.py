@@ -116,6 +116,7 @@ class rigidObject(viz.EventClass):
 	def getMarkerPositionsPS_XYZ(self,alPSMarkers_midx):
 		''' Phasespce coordinates'''
 		
+		
 		# Build list of updated marker positions in newPosWorldCoords
 		newPos_midx_GlobalXYZ = [];
 		
@@ -127,6 +128,8 @@ class rigidObject(viz.EventClass):
 				oldRigidIDConverted = markerNumToID( self.trackerIdx, oldMarkerIdx );
 				
 				if( alPSMarkers_midx[newMarkerIdx].id == oldRigidIDConverted ):
+					
+					# This is not global, is it?  
 					
 					newPos_midx_GlobalXYZ.append( [ alPSMarkers_midx[newMarkerIdx].x, 
 												alPSMarkers_midx[newMarkerIdx].y,
@@ -149,7 +152,7 @@ class rigidObject(viz.EventClass):
 			#rof
 		else:
 			return newPos_midx_GlobalXYZ
-		
+	
 	def saveNewDefaults(self):
 		
 		fileObject = open(self.filePath + 'temp.rb','w')#self.fileName , 'w')
@@ -679,16 +682,26 @@ class phasespaceInterface(viz.EventClass):
 			
 			#if( self.mainViewUpdateAction ):
 			markerPosPS_XYZ = rigidBody.getMarkerPositionsPS_XYZ( self.alPSMarkers_midx );
-			markerPosViz_XYZ = []
-			for ps_XYZ in markerPosPS_XYZ: #mIdx in range(len(markerPosPS_XYZ )):
+			markerPosViz_mIdx_XYZ = []
+			for mIdx in range(len(markerPosPS_XYZ )): # ps_XYZ in markerPosPS_XYZ: #
+				
+				ps_XYZ = markerPosPS_XYZ[mIdx]
+				
+#				if( ps_XYZ == [0,0,0] ):
+#					print 'Error: Could not see all markers'
+#					return -1
+					
 				viz_XYZ = self.psPosToVizPos(ps_XYZ)
-				markerPosViz_XYZ.append(viz_XYZ)
+				markerPosViz_mIdx_XYZ.append(viz_XYZ)
+				
+				#print 'MarkerPos: ' + str(markerPosViz_mIdx_XYZ)
+				
 		else:
 			
 			print ('Error: Rigid body not initialized');
-			return
+			return -1
 			
-		return markerPosViz_XYZ
+		return markerPosViz_mIdx_XYZ
 		
 	#fed
 	
@@ -793,8 +806,6 @@ class phasespaceInterface(viz.EventClass):
 		return transformViz
 		
 	def psPosToVizPos(self,posPS_XYZ):
-		
-		
 		
 #		# FLip Z axis and rotate basis CCW 90 degs
 		# Set rigid body transformation matrix
