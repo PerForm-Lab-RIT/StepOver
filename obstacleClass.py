@@ -10,7 +10,7 @@ class obstacleObj():
 
 	def __init__(self, room,crossBarHeight=0.5, obsPosition=[0,0,0]):
 		
-		obsHeight = 0.95
+		obsHeight = 0.45
 		obsWidth = 1.24
 		obsDepth = 0.87
 		radius = 0.01

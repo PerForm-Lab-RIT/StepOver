@@ -195,7 +195,7 @@ class room():
         ### ADD A SHADOW
         #SHADOW_RES = 256*10
         SHADOW_RES = 100*10
-        SHADOW_PROJ_POS = (0, self.ceilingHeight, 0)
+        SHADOW_PROJ_POS = (3, self.ceilingHeight, -3) # (Kamran) Changed for test
         SHADOW_AREA = (self.roomWidth,self.roomLength)
         
         #Create shadow projector

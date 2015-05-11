@@ -532,8 +532,10 @@ class Experiment(viz.EventClass):
 		
 		#FIXME: Collision locatoin is not set correctly in _checkForCollisions
 		#if( self.eventFlag.status == 4 or self.eventFlag.status == 5 ):
-		collisionPosLocal_XYZ = self.currentTrial.collisionPosLocal_XYZ
-		outputString = outputString + ' collisionPosLocal_XYZ [ %f %f %f ] ' % (collisionPosLocal_XYZ[0], collisionPosLocal_XYZ[1], collisionPosLocal_XYZ[2])
+		
+		### (Kamran) Hacked for test
+		###  collisionPosLocal_XYZ = self.currentTrial.collisionPosLocal_XYZ
+		###  outputString = outputString + ' collisionPosLocal_XYZ [ %f %f %f ] ' % (collisionPosLocal_XYZ[0], collisionPosLocal_XYZ[1], collisionPosLocal_XYZ[2])
 		
 		outputString = outputString + ' trialType %s ' % (self.currentTrial.trialType)
 
@@ -662,7 +664,7 @@ class Experiment(viz.EventClass):
 			
 		else:
 			self.directionArrow.setEuler([270,0,0])
-			self.room.standingBox.setPosition([0.0, 0.1, -3.5])
+			self.room.standingBox.setPosition([0.0, 0.1, -3.])
 			#self.room.standingBox.setPosition([-0.1, 0.01, -2.4])
 			# 3.8 to the back
 		
@@ -1283,7 +1285,7 @@ experimentConfiguration = vrlabConfig.VRLabConfig(expConfigFileName)
 experimentObject = Experiment(experimentConfiguration)
 experimentObject.start()
 #
-#demoMode(experimentObject)
+demoMode(experimentObject)
 #grid = vizshape.addGrid()
 #grid.scale([0.25,0.25,0.25])
 
