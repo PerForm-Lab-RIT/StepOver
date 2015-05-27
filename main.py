@@ -2,9 +2,11 @@
 Runs an experiment.
 """
 
+viz.res.addPath('resources')
+sys.path.append('utils')
+
 import viz
 import viztask
-import vrlabConfig
 import vizshape
 import vizact
 from drawNumberFromDist import *
@@ -18,6 +20,18 @@ import virtualPlane
 import vizinput
 
 from obstacleClass import obstacleObj
+
+#For hardware configuration
+viz.res.addPath('resources')
+sys.path.append('utils')
+from configobj import ConfigObj
+from configobj import flatten_errors
+from validate import Validator
+import platform
+import os.path
+import vizconnect
+
+
 
 expConfigFileName = 'exampleExpConfig.cfg'
 
@@ -56,13 +70,336 @@ class soundBank():
 
 soundBank = soundBank()
 
+class Configuration():
+	
+	def __init__(self, expCfgName = ""):
+		"""
+		Opens and interprets both the system config (as defined by the <platform>.cfg file) and the experiment config
+		(as defined by the file in expCfgName). Both configurations MUST conform the specs given in sysCfgSpec.ini and
+		expCfgSpec.ini respectively. It also initializes the system as specified in the sysCfg.
+		"""
+		self.eyeTracker = []
+		
+		self.writables = list()
+		if expCfgName:
+			self.__createExpCfg(expCfgName)
+		else:
+			self.expCfg = None
+			
+		self.__createSysCfg()
+		
+		for pathName in self.sysCfg['set_path']:
+			viz.res.addPath(pathName)
+			
+		self.vizconnect = vizconnect.go( 'vizConnect/' + self.sysCfg['vizconfigFileName'])
+		self.__postVizConnectSetup()
+		
+	def __postVizConnectSetup(self):
+		
+		''' 
+		This is where one can run any system-specific code that vizconnect can't handle
+		'''
+
+		dispDict = vizconnect.getRawDisplayDict()
+		
+		#self.clientWindow = dispDict['custom_window']
+		#self.riftWindow = dispDict['rift']
+		
+		if self.sysCfg['use_phasespace']:
+			
+			from mocapInterface import phasespaceInterface			
+			self.mocap = phasespaceInterface(self.sysCfg);
+			
+			self.use_phasespace = True
+		else:
+			self.use_phasespace = False
+
+		if( self.sysCfg['use_wiimote']):
+			# Create wiimote holder
+			self.wiimote = 0
+			self.__connectWiiMote()
+
+		if self.sysCfg['use_hmd'] and self.sysCfg['hmd']['type'] == 'DK2':
+			self.__setupOculusMon()
+		
+		if self.sysCfg['use_eyetracking']:
+			self.use_eyetracking = True
+			self.__connectSMIDK2()
+		else:
+			self.use_eyetracking = False
+			
+		if self.sysCfg['use_DVR'] == 1:
+			self.use_DVR = True
+		else:
+			self.use_DVR = False
+		
+		if self.sysCfg['use_virtualPlane']:
+			self.use_VirtualPlane = True
+			
+			isAFloor = self.sysCfg['virtualPlane']['isAFloor']
+			planeName = self.sysCfg['virtualPlane']['planeName']
+			planeCornerFile = self.sysCfg['virtualPlane']['planeCornerFile']
+			
+			self.virtualPlane = virtualPlane.virtualPlane(self,planeName,isAFloor,planeCornerFile)
+			
+		self.writer = None #Will get initialized later when the system starts
+		self.writables = list()
+		
+		#__setWinPriority()
+		#viz.setMultiSample(self.sysCfg['antiAliasPasses'])
+		#viz.MainWindow.clip(0.01 ,200)
+		
+		#viz.vsync(1)
+		#viz.setOption("viz.glfinish", 1)
+		#viz.setOption("viz.dwm_composition", 0)
+		
+	def __createExpCfg(self, expCfgName):
+
+		"""
+
+		Parses and validates a config obj
+		Variables read in are stored in configObj
+		
+		"""
+		
+		print "Loading experiment config file: " + expCfgName
+		
+		# This is where the parser is called.
+		expCfg = ConfigObj(expCfgName, configspec='expCfgSpec.ini', raise_errors = True, file_error = True)
+
+		validator = Validator()
+		expCfgOK = expCfg.validate(validator)
+		if expCfgOK == True:
+			print "Experiment config file parsed correctly"
+		else:
+			print 'Experiment config file validation failed!'
+			res = expCfg.validate(validator, preserve_errors=True)
+			for entry in flatten_errors(expCfg, res):
+			# each entry is a tuple
+				section_list, key, error = entry
+				if key is not None:
+					section_list.append(key)
+				else:
+					section_list.append('[missing section]')
+				section_string = ', '.join(section_list)
+				if error == False:
+					error = 'Missing value or section.'
+				print section_string, ' = ', error
+			sys.exit(1)
+		if expCfg.has_key('_LOAD_'):
+			for ld in expCfg['_LOAD_']['loadList']:
+				print 'Loading: ' + ld + ' as ' + expCfg['_LOAD_'][ld]['cfgFile']
+				curCfg = ConfigObj(expCfg['_LOAD_'][ld]['cfgFile'], configspec = expCfg['_LOAD_'][ld]['cfgSpec'], raise_errors = True, file_error = True)
+				validator = Validator()
+				expCfgOK = curCfg.validate(validator)
+				if expCfgOK == True:
+					print "Experiment config file parsed correctly"
+				else:
+					print 'Experiment config file validation failed!'
+					res = curCfg.validate(validator, preserve_errors=True)
+					for entry in flatten_errors(curCfg, res):
+					# each entry is a tuple
+						section_list, key, error = entry
+						if key is not None:
+							section_list.append(key)
+						else:
+							section_list.append('[missing section]')
+						section_string = ', '.join(section_list)
+						if error == False:
+							error = 'Missing value or section.'
+						print section_string, ' = ', error
+					sys.exit(1)
+				expCfg.merge(curCfg)
+		
+		self.expCfg = expCfg
+
+	
+	def __setWinPriority(self,pid=None,priority=1):
+		
+		""" Set The Priority of a Windows Process.  Priority is a value between 0-5 where
+			2 is normal priority.  Default sets the priority of the current
+			python process but can take any valid process ID. """
+			
+		import win32api,win32process,win32con
+		
+		priorityclasses = [win32process.IDLE_PRIORITY_CLASS,
+						   win32process.BELOW_NORMAL_PRIORITY_CLASS,
+						   win32process.NORMAL_PRIORITY_CLASS,
+						   win32process.ABOVE_NORMAL_PRIORITY_CLASS,
+						   win32process.HIGH_PRIORITY_CLASS,
+						   win32process.REALTIME_PRIORITY_CLASS]
+		if pid == None:
+			pid = win32api.GetCurrentProcessId()
+		
+		handle = win32api.OpenProcess(win32con.PROCESS_ALL_ACCESS, True, pid)
+		win32process.SetPriorityClass(handle, priorityclasses[priority])
+		
+	def __createSysCfg(self):
+		"""
+		Set up the system config section (sysCfg)
+		"""
+		
+		# Get machine name
+		sysCfgName = platform.node()+".cfg"
+		
+		if not(os.path.isfile(sysCfgName)):
+			sysCfgName = "defaultSys.cfg"
+			
+		print "Loading system config file: " + sysCfgName
+		
+		# Parse system config file
+		sysCfg = ConfigObj(sysCfgName, configspec='sysCfgSpec.ini', raise_errors = True)
+		
+		validator = Validator()
+		sysCfgOK = sysCfg.validate(validator)
+		
+		if sysCfgOK == True:
+			print "System config file parsed correctly"
+		else:
+			print 'System config file validation failed!'
+			res = sysCfg.validate(validator, preserve_errors=True)
+			for entry in flatten_errors(sysCfg, res):
+			# each entry is a tuple
+				section_list, key, error = entry
+				if key is not None:
+					section_list.append(key)
+				else:
+					section_list.append('[missing section]')
+				section_string = ', '.join(section_list)
+				if error == False:
+					error = 'Missing value or section.'
+				print section_string, ' = ', error
+			sys.exit(1)
+		self.sysCfg = sysCfg
+	
+		
+	def __setupOculusMon(self):
+		"""
+		Setup for the oculus rift dk2
+		Relies upon a cluster enabling a single client on the local machine
+		THe client enables a mirrored desktop view of what's displays inside the oculus DK2
+		Note that this does some juggling of monitor numbers for you.
+		"""
+		
+		#viz.window.setFullscreenMonitor(self.sysCfg['displays'])
+		
+		#hmd = oculus.Rift(renderMode=oculus.RENDER_CLIENT)
+
+		displayList = self.sysCfg['displays'];
+		
+		if len(displayList) < 2:
+			print 'Display list is <1.  Need two displays.'
+		else:
+			print 'Using display number' + str(displayList[0]) + ' for oculus display.'
+			print 'Using display number' + str(displayList[1]) + ' for mirrored display.'
+		
+		### Set the rift and exp displays
+		
+		riftMon = []
+		expMon = displayList[1]
+		
+		with viz.cluster.MaskedContext(viz.MASTER):
+			
+			# Set monitor to the oculus rift
+			monList = viz.window.getMonitorList()
+			
+			for mon in monList:
+				if mon.name == 'Rift DK2':
+					riftMon = mon.id
+			
+			viz.window.setFullscreen(riftMon)
+
+		with viz.cluster.MaskedContext(viz.CLIENT1):
+			
+			count = 1
+			while( riftMon == expMon ):
+				expMon = count
+				
+			viz.window.setFullscreenMonitor(expMon)
+			viz.window.setFullscreen(1)
+
+	def __connectWiiMote(self):
+		
+		wii = viz.add('wiimote.dle')#Add wiimote extension
+		
+		# Replace old wiimote
+		if( self.wiimote ):
+			print 'Wiimote removed.'
+			self.wiimote.remove()
+			
+		self.wiimote = wii.addWiimote()# Connect to first available wiimote
+		
+		vizact.onexit(self.wiimote.remove) # Make sure it is disconnected on quit
+		
+		self.wiimote.led = wii.LED_1 | wii.LED_4 #Turn on leds to show connection
+	
+	def __connectSMIDK2(self):
+		
+		if self.sysCfg['sim_trackerData']:
+			self.eyeTracker = smi_beta.iViewHMD(simulate=True)
+		else:
+			self.eyeTracker = smi_beta.iViewHMD()
+	
+	def __record_data__(self, e):
+		
+		if self.use_DVR and self.writer != None:
+			#print "Writing..."
+			self.writer.write(self.writables)
+		
+	def startDVR(self):
+		
+		if self.use_DVR:
+			print "Starting DVR"
+			from DVRwriter				import DVRwriter
+			from datetime 				import datetime
+			
+			metadata = 'unused per-file meta data' #Can be filled in with useful metadata if desired.
+			
+			if None == self.writer: #need to lazy initialize this because it has to be called after viz.go()
+				
+				sz = viz.window.getSize()
+				self.now = datetime.now()
+				nameRoot = '%s%d.%d.%d.%d-%d' % (self.sysCfg['writer']['outFileDir'], self.now.year, self.now.month, self.now.day, self.now.hour, self.now.minute)
+				outFile = '%s.%s' % (nameRoot, self.sysCfg['writer']['outFileName'])
+				self.expCfg.filename = '%s.expCfg.cfg' % (nameRoot)
+				self.sysCfg.filename = '%s.sysCfg.cfg' % (nameRoot)
+				
+				
+#				if 'L' == self.sysCfg['eyetracker']['eye']: 
+#					viewport = (0,      0,sz[0]/2,sz[1])
+#				else:               
+#					viewport = (sz[0]/2,0,sz[0]/2,sz[1])
+#				#fi
+				
+				viewport = self.clientWindow
+				viewPosXY = viewport.getPosition(viz.WINDOW_PIXELS)
+				viewSizeXY = viewport.getSize(viz.WINDOW_PIXELS)
+				
+				#viewport = (1920,0,1920,1200)
+				viewport = (0,0,1920,1200)
+				
+				
+				print "OutfileName:" + self.sysCfg['writer']['outFileName']
+				print "Metadata:" + metadata
+				print "Viewport:" + str(viewport)
+				print "Eyetracking:" + str(self.use_eyetracking)
+				
+			
+				self.writer = DVRwriter(outFile, metadata, viewport,0)
+				self.expCfg.write()
+				self.sysCfg.write()
+				
+			self.writer.turnOn()
+			
+
+
 class Experiment(viz.EventClass):
 	
 	"""
 	Experiment manages the basic operation of the experiment.
 	"""
 	
-	def __init__(self, config):
+	def __init__(self, expConfigFileName):
 		
 		# Event classes can register their own callback functions
 		# This makes it possible to register callback functions (e.g. activated by a timer event)
@@ -77,19 +414,12 @@ class Experiment(viz.EventClass):
 		## Use config to setup hardware, motion tracking, frustum, eyeTrackingCal.
 		##  This draws upon the system config to setup the hardware / HMD
 		
-		self.config = config 
+		#self.config = config
+		config = Configuration(expConfigFileName)
+		self.config = config
 		
 		# Update to reflect actual leg length of user
 		self.inputLegLength()
-
-		# Eventually, self.config.writables is passed to DVRwriter
-		# self.config.writables is a list
-		# dvrwriter will attempt to run .getOutput on every member of the list
-		# One could then add experiment, theBall, theRacquet, eyeTrackingCal to the list, assuming 
-		# they include the member function .getOutput().
-		# I prefer to do all my data collection in one place: experiment.getOutput()
-		
-		self.config.writables = [self]
 		
 		################################################################
 		################################################################
@@ -149,16 +479,7 @@ class Experiment(viz.EventClass):
 		self.trialEndPosition = config.expCfg['experiment']['trialEndPosition']
 		self.metronomeTimeMS = config.expCfg['experiment']['metronomeTimeMS']
 				
-		################################################################
-		##  LInk up the hmd to the mainview
-		
-		if( self.config.use_phasespace == True and self.config.use_HMD ):
-			
-			################################################################
-			##  Link up the hmd to the mainview
-			if( config.mocap.returnPointerToRigid('hmd') ):
-				self.config.mocap.enableHMDTracking()
-	
+		##  Setup virtual plane
 		if( self.config.use_phasespace == True and self.config.sysCfg['virtualPlane']['attachGlassesToRigid']):
 		
 			#eyeSphere = visEnv.visObj(self.room,'sphere',size=0.1,alpha=1)
@@ -362,7 +683,6 @@ class Experiment(viz.EventClass):
 		
 		##This is called when the experiment should begin.
 		self.setEnabled(True)
-		self.config.start()
 
 	def toggleEyeCalib(self):
 		"""
@@ -1273,16 +1593,13 @@ def demoMode(experimentObject):
 ################################################################################################################
 ##  Here's where the magic happens!
 
-experimentConfiguration = vrlabConfig.VRLabConfig(expConfigFileName)
-
-
 ## vrlabConfig uses config to setup hardware, motion tracking, frustum, eyeTrackingCal.
 ##  This draws upon the system config to setup the hardware / HMD
 
 ## The experiment class initialization draws the room, sets up physics, 
 ## and populates itself with a list of blocks.  Each block contains a list of trials
 
-experimentObject = Experiment(experimentConfiguration)
+experimentObject = Experiment(expConfigFileName)
 experimentObject.start()
 #
 demoMode(experimentObject)
