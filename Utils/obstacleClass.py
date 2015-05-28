@@ -57,23 +57,23 @@ class obstacleObj():
 		# DWH
 		self.collisionBox = visEnv.visObj(self.parentRoom,'box',[radius,obsWidth,self.collisionBoxSize])		
 		self.collisionBox.enablePhysNode()
-		self.collisionBox.toggleUpdatePhysWithVis()
+		self.collisionBox.linkPhysToVis()
 		
-		self.collisionBoxLink = viz.link(self.bottomMainPipe,self.collisionBox.visNode)
+		self.collisionBoxLink = viz.link(self.bottomMainPipe,self.collisionBox.node3D)
 		boxYPosition = -self.collisionBoxSize/2 + self.crossBarHeight
 		self.collisionBoxLink.setOffset([0,boxYPosition,0])
 			
-		self.collisionBox.visNode.setPosition([0, boxYPosition, 0],viz.ABS_PARENT)
-		self.collisionBox.visNode.visible(viz.OFF)
+		self.collisionBox.node3D.setPosition([0, boxYPosition, 0],viz.ABS_PARENT)
+		self.collisionBox.node3D.visible(viz.OFF)
 		
-		self.visNode = viz.addGroup()
-		self.bottomMainPipe.setParent(self.visNode)
+		self.node3D = viz.addGroup()
+		self.bottomMainPipe.setParent(self.node3D)
 		
 	def setColor(self,color):
-		self.visNode.color(color)
+		self.node3D.color(color)
 		
 	def toggleCBoxVisibility(self):
-		self.collisionBox.visNode.visible(viz.TOGGLE)
+		self.collisionBox.node3D.visible(viz.TOGGLE)
 		
 	def setCrossbarHeight(self, crossBarHeight):
 		
@@ -106,7 +106,7 @@ class obstacleObj():
 		self.bottomMainPipe.setEuler(euler)
 	
 	def remove(self):
-		self.visNode.remove()
+		self.node3D.remove()
 		pass
 		
 def updateObstacle():
@@ -151,5 +151,5 @@ if __name__ == "__main__":
 
 def queryVisAndPhys(object):
 	
-	print object.visNode.getPosition()
+	print object.node3D.getPosition()
 	print object.physNode.getPosition()

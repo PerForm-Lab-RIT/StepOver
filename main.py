@@ -10,14 +10,18 @@ import viztask
 import vizshape
 import vizact
 from drawNumberFromDist import *
-import visEnv
-import physEnv
 import ode
 import datetime
 from ctypes import * # eyetrackka
 import winsound
 import virtualPlane
 import vizinput
+
+#import visEnv12
+#import physEnv
+
+import visEnv
+import physEnv
 
 from obstacleClass import obstacleObj
 
@@ -107,10 +111,12 @@ class Configuration():
 		
 		if self.sysCfg['use_phasespace']:
 			
-			from mocapInterface import phasespaceInterface			
+			from mocapInterface import phasespaceInterface	
 			self.mocap = phasespaceInterface(self.sysCfg);
+			self.mocap.start_thread()
 			
 			self.use_phasespace = True
+			
 		else:
 			self.use_phasespace = False
 
@@ -439,10 +445,10 @@ class Experiment(viz.EventClass):
 		
 		# self.room.physEnv 
 		self.hmdLinkedToView = False		
-		
-		
+
 		self.directionArrow = visEnv.visObj(self.room,'arrow',[.1,.1,.1],[-.8,.2,0],viz.PURPLE)
-		self.directionArrow.setEuler([270,0,0])
+		self.directionArrow.node3D.setEuler([270,0,0])
+		
 		################################################################
 		################################################################
 		# Build block and trial list
@@ -468,8 +474,6 @@ class Experiment(viz.EventClass):
 		# Initially, set to config value of leg length
 		config.legLengthCM = config.expCfg['experiment']['legLengthCM']
 		
-		
-		
 		if( config.wiimote ):
 			self.registerWiimoteActions()
 
@@ -483,10 +487,11 @@ class Experiment(viz.EventClass):
 		if( self.config.use_phasespace == True and self.config.sysCfg['virtualPlane']['attachGlassesToRigid']):
 		
 			#eyeSphere = visEnv.visObj(self.room,'sphere',size=0.1,alpha=1)
-			#eyeSphere.visNode.setParent(self.room.objects)
+			#eyeSphere.node3D.setParent(self.room.objects)
 			
 			self.setupShutterGlasses()
 			self.setupFeet()
+			pass
 			
 		##############################################################
 		##############################################################
@@ -516,26 +521,8 @@ class Experiment(viz.EventClass):
 		dataOutPutDir = config.sysCfg['writer']['outFileDir']
 		
 		self.expDataFile = open(dataOutPutDir + 'exp_data-' + dateTimeStr + '.txt','w+')
-		self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE, self.writeDataToText)
+		#self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE, self.writeDataToText)
 
-# TODO: Double check if this is needed for future or not (Kamran)
-#		# Use text output!
-#		if( config.sysCfg['use_DVR'] > 0 ):
-#			
-#			vizact.ontimer(3,self.checkDVRStatus)
-#			
-#			now = datetime.datetime.now()
-#			dateTimeStr = str(now.year) + '-' + str(now.month) + '-' + str(now.day) + '-' + str(now.hour) + '-' + str(now.minute)
-#			
-#			dataOutPutDir = config.sysCfg['writer']['outFileDir']
-#			
-#			self.expDataFile = open(dataOutPutDir + 'exp_data-' + dateTimeStr + '.txt','a')
-#			
-#			if( self.config.sysCfg['use_eyetracking']):
-#				self.eyeDataFile = open(dataOutPutDir + 'eye_data-' + dateTimeStr + '.txt','a')
-#			
-#			vizact.onupdate(viz.PRIORITY_LAST_UPDATE,self.writeDataToText)
-		
 		# Create an event flag object
 		# This var is set to an int on every frame
 		# The int saves a record of what was happening on that frame
@@ -942,8 +929,8 @@ class Experiment(viz.EventClass):
 		
 		if( self.room.rightFoot ):
 			
-			rightFootPos_XYZ = self.room.rightFoot.visNode.getPosition()
-			rightFootMat = self.room.rightFoot.visNode.getMatrix()
+			rightFootPos_XYZ = self.room.rightFoot.node.getPosition()
+			rightFootMat = self.room.rightFoot.node3D.getMatrix()
 			rightFootQUAT_XYZW = rightFootMat.getQuat()
 			
 		else:
@@ -955,8 +942,8 @@ class Experiment(viz.EventClass):
 
 		if( self.room.leftFoot ):
 			
-			leftFootPos_XYZ = self.room.leftFoot.visNode.getPosition()
-			leftFootMat = self.room.leftFoot.visNode.getMatrix()
+			leftFootPos_XYZ = self.room.leftFoot.node3D.getPosition()
+			leftFootMat = self.room.leftFoot.node3D.getMatrix()
 			leftFootQUAT_XYZW = leftFootMat.getQuat()
 			
 		else:
@@ -1147,7 +1134,7 @@ class Experiment(viz.EventClass):
 	
 	def isVisObjInBox(self,vizObj):
 		
-		pos_xyz = vizObj.visNode.getPosition()
+		pos_xyz = vizObj.node3D.getPosition()
 
 		standingBoxOffsetX = self.config.expCfg['room']['standingBoxOffset_X']
 		standingBoxOffsetZ = self.config.expCfg['room']['standingBoxOffset_Z']
@@ -1165,47 +1152,57 @@ class Experiment(viz.EventClass):
 			return 1
 		else:
 			return 0
-					
+	
 	def setupShutterGlasses(self):
 
+		'''
+		MOCAP: This is where I create an action that updates the mainview
+		with data from my motion capture system
+		'''
+		
 		config = self.config
 		print 'Connecting mainview to eyesphere'
 
 		viz.MainWindow.setStereoSwap(viz.TOGGLE)
 		
 		eyeSphere = self.room.eyeSphere
-		eyeSphere.setMocapRigidBody(config.mocap,'shutter')
-		eyeSphere.toggleUpdateWithRigid()
-		eyeSphere.visNode.visible(viz.TOGGLE)
+		eyeSphere.node3D.visible(viz.TOGGLE)
 		
 		shutterRigid = config.mocap.returnPointerToRigid('shutter')
-		self.config.virtualPlane.attachViewToGlasses(eyeSphere.visNode,shutterRigid)
+		shutterRigid.link_pose(eyeSphere.node3D)
+				
+		self.config.virtualPlane.attachViewToGlasses(eyeSphere.node3D,shutterRigid)
 				
 	def setupFeet(self):
-		
+
+		'''
+		MOCAP: This is where I create an action that updates the tracked foot position
+		with data from the motion capture device
+		'''
+			
 		config = self.config
 		leftFoot = self.room.leftFoot
-		leftFoot.visNode.color([0, 0, .3])
-		leftFoot.setMocapRigidBody(config.mocap,'leftFoot')
-		leftFoot.toggleUpdateWithRigid()
+		leftFoot.node3D.color([0, 0, .3])
+		lFootRigid = config.mocap.returnPointerToRigid('leftFoot')
+		lFootRigid.link_pose(leftFoot.node3D)
 		leftFoot.enablePhysNode()
-		leftFoot.toggleUpdatePhysWithVis()
-		#leftFoot.visNode.disable(viz.RENDERING)
-		leftFoot.visNode.visible(viz.ON)
+		leftFoot.physNode.isLinked = 1
+		viz.link( leftFoot.node3D, leftFoot.physNode.node3D)
+		
 		
 		rightFoot = self.room.rightFoot
-		rightFoot.visNode.color([0.5, 0, 0])
-		rightFoot.setMocapRigidBody(config.mocap,'rightFoot')
-		rightFoot.toggleUpdateWithRigid()
+		rightFoot.node3D.color([0.5, 0, 0])
+		rFootRigid = config.mocap.returnPointerToRigid('rightFoot')
+		rFootRigid.link_pose(rightFoot.node3D)
 		rightFoot.enablePhysNode()
-		rightFoot.toggleUpdatePhysWithVis()
-		#rightFoot.visNode.disable(viz.RENDERING)
-		rightFoot.visNode.visible(viz.ON)
-
+		rightFoot.physNode.isLinked = 1
+		viz.link( rightFoot.node3D, rightFoot.physNode.node3D)
+		
 	def resizeFootBox(self,footSide):
 		''' 
-		Algorithm is:100
-		100
+		MOCAP:  use foot markers to resize the rigid body to the dimensions of the foot
+		
+		Algorithm is:
 		
 			* Get all markers
 			* Find marker at max(X axis)
@@ -1222,20 +1219,16 @@ class Experiment(viz.EventClass):
 			return
 			
 		mocap = self.config.mocap
-		
-		# An array of 3 element arrays
-		# Position is in mm, and in phasespace coordintes
-		#markersOnRigidBody_mIdx_psXYZ = mocap.getRigidMarkerPositions(footSide) 
-		#markersOnRigidBody_mIdx_vizXYZ = []
-
-		
-		#markerZVals_mIdx = []
-		#markerXVals_mIdx= []
-		
+	
 		footHeightFromGround = 0 
 		footRigid = mocap.returnPointerToRigid(footSide)
 	
-		markerPosViz_mIdx_XYZ = mocap.getRigidMarkerPositions(footSide)
+		# MOCAP: Positions of markers on rigid body in world coordinates
+		markerDict = footRigid.get_markers()
+		
+		markerPosViz_mIdx_XYZ = [markerDict[mKey].pos for mKey in markerDict.keys()]
+			
+		#markerPosViz_mIdx_XYZ = mocap.getRigidMarkerPositions(footSide)
 
 		markerXVals_mIdx = [markerPosViz_mIdx_XYZ[mIdx][0] for mIdx in range(len(markerPosViz_mIdx_XYZ))]
 		markerZVals_mIdx = [markerPosViz_mIdx_XYZ[mIdx][2] for mIdx in range(len(markerPosViz_mIdx_XYZ))]
@@ -1268,9 +1261,9 @@ class Experiment(viz.EventClass):
 		#footVizNode.size(
 		footObj.size = footLWH
 		
-		print 'Making basic visNode of size ' + str(footLWH)
-		footObj.visNode.remove()
-		footObj.makeBasicVisNode()
+		print 'Making basic node3D of size ' + str(footLWH)
+		footObj.node3D.remove()
+		footObj.makeBasicnode3D()
 		
 		#self.setupEyesAndFeet()
 			
@@ -1515,7 +1508,7 @@ class trial(viz.EventClass):
 
 			self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
 			
-			self.obsObj.visNode.disable(viz.RENDERING)
+			self.obsObj.node3D.disable(viz.RENDERING)
 			
 			# Draw a line on the ground
 			lineHeight = 0.001
@@ -1576,7 +1569,7 @@ def demoMode(experimentObject):
 #	Z = viz.addText3D('Z',pos=[0,0,0.33],color=viz.BLUE,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
 	
 	experimentObject.room.standingBox.remove()
-	experimentObject.room.floor.visNode.remove()
+	experimentObject.room.floor.node3D.remove()
 	
 	viz.killtimer(experimentObject.perFrameTimerID)
 	
@@ -1601,13 +1594,17 @@ def demoMode(experimentObject):
 
 experimentObject = Experiment(expConfigFileName)
 experimentObject.start()
-#
-demoMode(experimentObject)
+
+es = experimentObject.room.eyeSphere
+sr = experimentObject.config.mocap.returnPointerToRigid('shutter')
+
+#demoMode(experimentObject)
 #grid = vizshape.addGrid()
 #grid.scale([0.25,0.25,0.25])
 
 # If you want to see spheres for each marker
 #visEnv.drawMarkerSpheres(experimentObject.room,experimentObject.config.mocap)
+
 
 
 #vizshape.addBox(size=(0.05,0.05,0.05))
@@ -1630,4 +1627,3 @@ if( experimentObject.hmdLinkedToView == False ):
 	#viz.mouse.setVisible(False)
 	
 	
-vizact.onkeydown('b',experimentObject.config.mocap.getRigidMarkerPositions,'right')
