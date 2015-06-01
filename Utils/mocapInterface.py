@@ -55,6 +55,9 @@ class PointTracker(viz.EventClass):
             for marker, target in paired:
                 if target is not None and 0 < marker.cond < 100:
                     target.setPosition(marker.pos)
+                    #GD: Changed to vizard friendly position
+                    #target.setPosition(-marker.pos[2],marker.pos[1],-marker.pos[0])
+                    
         self.callback(viz.UPDATE_EVENT, update)
 
     def get_markers(self):
@@ -201,7 +204,8 @@ class RigidTracker(PointTracker):
             for mIdx in range(len(self.marker_ids)):
 
                 #mID = self.marker_ids(m)
-                marker = self._raw_markers[mIdx]
+                #marker = self._raw_markers[mIdx]
+                marker = self._markers[mIdx]
 
                 if marker is None or not 0 < marker.cond : #or not 0 < marker.cond < 100:
                     logging.error('missing marker %d for reset', mIdx)
@@ -478,11 +482,11 @@ class trackerBuffer(viz.EventClass):
 
         return posBuffer_sIdx
     
-    def psPoseToVizardPose(self, x, y, z): # converts Phasespace pos to vizard cond
-        return sz * z + oz, sy * y + oy, sx * x + ox
+    def psPositionToVizardPosition(self, x, y, z): # converts Phasespace pos to vizard cond
+        return -sz * z + oz, sy * y + oy, -sx * x + ox
         
     def psQuatToVizardQuat(self, w, a, b, c): # converts Phasespace quat to vizard quat
-        return c, b, a, -w
+        return -c, b, -a, -w
         
         pass
         
@@ -735,10 +739,12 @@ class phasespaceInterface(viz.EventClass):
         sx, sy, sz = self.scale
         ox, oy, oz = self.origin
         
-        def psPoseToVizardPose(x, y, z): # converts Phasespace pos to vizard cond
-            return sz * z + oz, sy * y + oy, sx * x + ox
+        def psPositionToVizardPosition(x, y, z): # converts Phasespace pos to vizard cond
+            #return sz * z + oz, sy * y + oy, sx * x + ox
+            return -sz * z + oz, sy * y + oy, -sx * x + ox
+        
         def psQuatToVizardQuat(w, a, b, c): # converts Phasespace quat to vizard quat
-            return c, b, a, -w
+            return -c, b, -a, -w
 
         #trackerPos_tIdx_XYZ = [0] * (len(markers) + len(rigids))
         
@@ -748,7 +754,7 @@ class phasespaceInterface(viz.EventClass):
                 t, o = marker.id >> 12, marker.id & 0xfff
                 x, y, z = marker.x, marker.y, marker.z
                 
-                vizPos = psPoseToVizardPose(x, y, z)
+                vizPos = psPositionToVizardPosition(x, y, z)
                 
                 self.trackers[t].update_markers(o,
                     Marker(pos=vizPos, cond=marker.cond, frame = marker.frame),
@@ -758,7 +764,7 @@ class phasespaceInterface(viz.EventClass):
         for rigid in rigids:
             if( rigid.cond > 0 and rigid.cond < self.owlParamMarkerCondThresh ):
                 
-                vizPos = psPoseToVizardPose(*rigid.pose[0:3])
+                vizPos = psPositionToVizardPosition(*rigid.pose[0:3])
 
                 self.trackers[rigid.id].update_pose(Pose(
                     vizPos,

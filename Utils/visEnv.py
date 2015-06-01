@@ -41,6 +41,10 @@ class room():
             self.wallPos_NegX = -self.roomWidth/2 + self.translateOnX;
             self.ceilingHeight = 25.0;
             self.drawStandingBox = False
+            
+            self.standingBoxOffsetX = 0;
+            self.standingBoxOffsetZ = -3;
+        
         else:
             
             self.texPath = config.expCfg['experiment']['texturePath'] #'Resources/'
@@ -60,7 +64,9 @@ class room():
             self.wallPos_NegX = -self.roomWidth/2 + self.translateOnX;
             
             self.drawStandingBox = config.expCfg['experiment']['drawStandingBox']
-            
+            self.standingBoxOffsetX = config.expCfg['room']['standingBoxOffset_X']
+            self.standingBoxOffsetZ = config.expCfg['room']['standingBoxOffset_Z']
+        
             self.isLeftHanded = float(config.expCfg['experiment']['isLeftHanded'])
             
             if( self.drawStandingBox  ):
@@ -141,34 +147,54 @@ class room():
                     execString = 'self.' + self.visObjNames_idx[idx] + ' = visObj(self,self.visObjShapes_idx[idx],self.visObjSizes_idx[idx])'
                     print 'VisEnv:Room: Added ' + self.visObjNames_idx[idx]
                     exec(execString)
-        
+      
     def createStandingBox(self):
-        
-            
-            # Draw the standing box
-            
-            boxSizeInfo = [ self.standingBoxSize_WHL[0], self.standingBoxSize_WHL[1],self.standingBoxSize_WHL[2]]
-            
-            self.standingBox = vizshape.addBox( boxSizeInfo,color=viz.GREEN,splitFaces = True,back=True)
-            self.standingBox.emissive([0,1,0])
-            self.standingBox.alpha(0.5)
-            
-            if( self.isLeftHanded ): self.standingBoxOffset_X *= -1;
-            
-            self.standingBox.setPosition(float(-self.standingBoxOffset_X),self.standingBoxSize_WHL[1]/2,.01)            
+        '''
+        This creates a transparent box from which the subject starts each trial.
+        Parameters of the box are typically stored in the experimetn config file.
+        This function is typically called in room.init()
+        '''
 
-            self.standingBox.color(1,0,0,node='back')            
-            self.standingBox.emissive(1,0,0,node='back')
-            self.standingBox.alpha(0.7,node='back')
+        # Draw the standing box
+        boxSizeInfo = [ self.standingBoxSize_WHL[0], self.standingBoxSize_WHL[1],self.standingBoxSize_WHL[2]]
 
-            self.standingBox.setParent(self.objects)
-            #self.standingBox.disable(viz.CULLING)
-            self.standingBox.disable(viz.CULL_FACE)
+        self.standingBox = vizshape.addBox( boxSizeInfo,color=viz.GREEN,splitFaces = True,back=True)
+        self.standingBox.emissive([0,1,0])
+        self.standingBox.alpha(0.5)
 
-            
-        
-   
-        
+        # Fix Me: Kamran
+        self.standingBox.setPosition([self.standingBoxOffsetX, 0.1, self.standingBoxOffsetZ])
+
+#        self.standingBox.color(1,0,0,node='left')            
+#        self.standingBox.emissive(1,0,0,node='left')
+#        self.standingBox.alpha(0.7,node='left')
+
+        self.standingBox.setParent(self.objects)
+        self.standingBox.disable(viz.CULL_FACE)
+
+               
+#    def createStandingBox(self):
+#        
+#            # Draw the standing box
+#            
+#            boxSizeInfo = [ self.standingBoxSize_WHL[0], self.standingBoxSize_WHL[1],self.standingBoxSize_WHL[2]]
+#            
+#            self.standingBox = vizshape.addBox( boxSizeInfo,color=viz.GREEN,splitFaces = True,back=True)
+#            self.standingBox.emissive([0,1,0])
+#            self.standingBox.alpha(0.5)
+#            
+#            if( self.isLeftHanded ): self.standingBoxOffset_X *= -1;
+#            
+#            self.standingBox.setPosition(float(-self.standingBoxOffset_X),self.standingBoxSize_WHL[1]/2,.01)            
+#
+#            self.standingBox.color(1,0,0,node='back')            
+#            self.standingBox.emissive(1,0,0,node='back')
+#            self.standingBox.alpha(0.7,node='back')
+#
+#            self.standingBox.setParent(self.objects)
+#            #self.standingBox.disable(viz.CULLING)
+#            self.standingBox.disable(viz.CULL_FACE)
+#        
     def setLighting(self):
         
         viz.MainView.getHeadLight().disable()
@@ -259,8 +285,8 @@ class visObj(viz.EventClass):
         self.parentRoom = room;
         
         self.node3D = 0
-        self.obj = []
-            
+        self.physNode = 0
+        
         ################################################################################################
         ################################################################################################
         ## Variables related to automated updating with physics or motion capture
@@ -289,13 +315,17 @@ class visObj(viz.EventClass):
             self.updateAction.remove()
         
         # Remove physical component
-        if( self.physNode ):
-            self.physNode.remove()
-            self.physNode = False
+        self.removePhysNode()
                 
         # Remove visual component
         self.node3D.remove()
-     
+    
+    def removePhysNode(self):
+          # Remove physical component
+        if( self.physNode ):
+            self.physNode.remove()
+            self.physNode = False
+            
     def remove(self):
         
         self.__del__()
@@ -359,7 +389,7 @@ class visObj(viz.EventClass):
             
             print 'Making an arrow'
             newnode3D = vizshape.addArrow(alpha = self.alpha,color=viz.BLUE, axis = vizshape.AXIS_X, length=0.2,radiusRatio=0.05 )
-            
+            newnode3D.setPosition(pos)
         if( newnode3D ) :
                     
             self.node3D = newnode3D
@@ -393,7 +423,9 @@ class visObj(viz.EventClass):
             
     def setPosition(self,position):
 
-        self.physNode.setPosition(position)
+        if( self.physNode ):
+            self.physNode.setPosition(position)
+            
         self.node3D.setPosition(position)
         
     def setColor(self,color3f):
