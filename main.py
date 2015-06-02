@@ -447,7 +447,10 @@ class Experiment(viz.EventClass):
 		self.hmdLinkedToView = False		
 
 		self.directionArrow = vizshape.addArrow(color=viz.BLUE, axis = vizshape.AXIS_X, length=0.2,radiusRatio=0.05 )
+<<<<<<< HEAD
+=======
 		#visEnv.visObj(self.room,'arrow',size=[.1,.1,.1],position=[-1.1,0,1.4],viz.PURPLE)
+>>>>>>> origin/Replaced-vrLabConfig-with-ConfigClass
 		self.directionArrow.setEuler([270,0,0])
 		self.directionArrow.setPosition([-1.1,0,-1.5])
 		
@@ -463,6 +466,7 @@ class Experiment(viz.EventClass):
 		self.blocks_bl = []
 		
 		self.room.offsetDistance = float(config.expCfg['room']['minObstacleDistance'])
+		
 		print'====> Obstacle Distance = ', self.room.offsetDistance
 		for bIdx in range(len(config.expCfg['experiment']['blockList'])):
 			self.blocks_bl.append(block(config,bIdx, self.room));
@@ -479,7 +483,7 @@ class Experiment(viz.EventClass):
 		if( config.wiimote ):
 			self.registerWiimoteActions()
 
-		self.obstacleViewTimerID = viz.getEventID('obstacleViewTimerID') # Generates a unique ID. 
+		#self.obstacleViewTimerID = viz.getEventID('obstacleViewTimerID') # Generates a unique ID. 
 		
 		self.numClicksBeforeGo = config.expCfg['experiment']['numClicksBeforeGo']
 		self.trialEndPosition = config.expCfg['experiment']['trialEndPosition']
@@ -1197,7 +1201,6 @@ class Experiment(viz.EventClass):
 		leftFoot.physNode.isLinked = 1
 		viz.link( leftFoot.node3D, leftFoot.physNode.node3D)
 		
-		
 		rightFoot = self.room.rightFoot
 		rightFoot.node3D.color([0.5, 0, 0])
 		rFootRigid = config.mocap.returnPointerToRigid('rightFoot')
@@ -1468,16 +1471,6 @@ class trial(viz.EventClass):
 				# Draw value from a distribution
 				exec( 'self.' + varName + ' = drawNumberFromDist( distType , distParams);' )
 
-#	def removeBall(self):
-#		An example of how to remove an object from the room
-#		self.ballObj.remove()
-#		self.ballObj = -1
-#		
-#		self.ballInRoom = False
-#		self.ballInInitialState = False
-#		self.ballLaunched = False
-		
-
 	def _setValueOrUseDefault(self,config,paramPrefix):
 		
 		try:
@@ -1495,8 +1488,6 @@ class trial(viz.EventClass):
 		
 		#print 'Distribution :', distType, distParams
 		value = drawNumberFromDist(distType,distParams)
-	
-		
 		return distType,distParams,value
 		
 			
@@ -1550,9 +1541,12 @@ class trial(viz.EventClass):
 		else:
 			
 			self.obsObj = obstacleObj(room,self.obsHeightM,obsLoc)
-			
 			print'Placing Obstacle at', obsLoc, 'height', self.obsHeightM
+<<<<<<< HEAD
+
+=======
 #
+>>>>>>> origin/Replaced-vrLabConfig-with-ConfigClass
 ##	def placeObs(self,room):
 ##		
 ##		#print 'Creating object at ' + str(obsLoc)
@@ -1678,11 +1672,17 @@ def demoMode(experimentObject):
 #	X = viz.addText3D('X',pos=[0.33,0,0],color=viz.RED,scale=[0.1,0.1,0.1],parent=world_axes)
 #	Y = viz.addText3D('Y',pos=[0,0.33,0],color=viz.GREEN,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
 #	Z = viz.addText3D('Z',pos=[0,0,0.33],color=viz.BLUE,scale=[0.1,0.1,0.1],align=viz.ALIGN_CENTER_BASE,parent=world_axes)
-	
+
+	experimentObject.room.leftFoot.remove()
+	experimentObject.room.rightFoot.remove()
 	experimentObject.room.standingBox.remove()
 	experimentObject.room.floor.node3D.remove()
 	
-	viz.killtimer(experimentObject.perFrameTimerID)
+	experimentObject.directionArrow.remove()
+	
+	experimentObject.currentTrial.removeObs()
+	
+	#viz.killtimer(experimentObject.perFrameTimerID)
 	
 	#vizshape.addGrid()
 	
@@ -1711,37 +1711,23 @@ lr = experimentObject.config.mocap.returnPointerToRigid('left')
 
 lf.node3D.getPosition()
 lr.get_position()
+<<<<<<< HEAD
+=======
 
 #sr = experimentObject.config.mocap.returnPointerToRigid('shutter')
 
+>>>>>>> origin/Replaced-vrLabConfig-with-ConfigClass
 
 #demoMode(experimentObject)
+
 #grid = vizshape.addGrid()
 #grid.scale([0.25,0.25,0.25])
 
 # If you want to see spheres for each marker
-#visEnv.drawMarkerSpheres(experimentObject.room,experimentObject.config.mocap)
 
 
 vizshape.addAxes()
 
+#vizshape.addAxes()
+
 #vizshape.addBox(size=(0.05,0.05,0.05))
-if( experimentObject.hmdLinkedToView == False ):
-	
-	#print 'Head controlled by mouse/keyboard. Initial viewpoint set in vrLabConfig _setupSystem()'
-	
-	#viz.MainView.setPosition(-3,2,-3)
-	#viz.MainView.setPosition([experimentObject.room.wallPos_NegX +.1, 2, experimentObject.room.wallPos_NegZ +.1])
-	#viz.MainView.lookAt([0,2,-2])
-	# Setup keyboard/mouse trackerklkk
-	
-	import vizcam
-	
-	#tracker = vizcam.addKeyboard6DOF(moveScale=1.0)
-	#tracker.setPosition([-3,.5,0])
-	#tracker.lookAt([3,0.5,0])
-	
-	#viz.link(tracker,viz.MainView)
-	#viz.mouse.setVisible(False)
-	
-	

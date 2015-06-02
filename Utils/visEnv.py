@@ -158,6 +158,17 @@ class room():
         # Draw the standing box
         boxSizeInfo = [ self.standingBoxSize_WHL[0], self.standingBoxSize_WHL[1],self.standingBoxSize_WHL[2]]
 
+<<<<<<< HEAD
+        self.standingBox = vizshape.addBox( boxSizeInfo,color=viz.GREEN,splitFaces = True,back=True)        
+        self.standingBox.setPosition([self.standingBoxOffsetX, 0.1, self.standingBoxOffsetZ])
+        self.standingBox.emissive([0,1,0])
+        self.standingBox.alpha(0.5)
+
+        # Fix Me: Kamran
+        self.standingBox.setParent(self.objects)
+        self.standingBox.disable(viz.CULL_FACE)
+
+=======
         self.standingBox = vizshape.addBox( boxSizeInfo,color=viz.GREEN,splitFaces = True,back=True)
         self.standingBox.emissive([0,1,0])
         self.standingBox.alpha(0.5)
@@ -195,6 +206,7 @@ class room():
 #            #self.standingBox.disable(viz.CULLING)
 #            self.standingBox.disable(viz.CULL_FACE)
 #        
+>>>>>>> origin/Replaced-vrLabConfig-with-ConfigClass
     def setLighting(self):
         
         viz.MainView.getHeadLight().disable()
@@ -442,14 +454,6 @@ class visObj(viz.EventClass):
         #Add ground as shadow receiver
         self.parentRoom.shadowSource.addReceiver(targetnode3D)
         
-#    def setMocapMarker(self,mocap,markerIndex):        
-#       
-#       self.markerObject = mocap.returnPointerToMarker(markerIndex)
-#    
-#    def setMocapRigidBody(self,mocap,rigidBodyFileString):        
-#       
-#       self.rigidBodyFile = mocap.returnPointerToRigid(rigidBodyFileString)
-    
     def enablePhysNode(self):
     
         ## Create physical object
@@ -472,21 +476,8 @@ class visObj(viz.EventClass):
         self.physNode.setBounciness(bounciness)        
 
 
-class mocapMarkerSphere(visObj):
-    def __init__(self,mocap,room,markerNum):
-        #super(visObj,self).__init__(room,'sphere',.04,[0,0,0],[.5,0,0],1)
 
-        position = [0,0,0]
-        shape = 'sphere'
-        color=[.5,0,0]
-        size = [.015]
         
-        visObj.__init__(self,room,shape,size,position,color)
-        
-        #self.physNode.enableMovement()
-        self.markerNumber = markerNum
-        self.mocapDevice = mocap
-        self.toggleUpdateWithMarker()
 
 if __name__ == "__main__":
 
