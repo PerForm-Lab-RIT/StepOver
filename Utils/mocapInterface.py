@@ -850,13 +850,26 @@ class phasespaceInterface(viz.EventClass):
         return self.get_MarkerPos(markerIdx,bufferDurationS)
             
     def get_MarkerTracker(self,markerIdx):
+        
         ''' Included for backwards compatability
+        GD FIXME:  Returns marker object, not a tracker object
+        should search through trackers until it finds the point tracker that contains the marker ID
+        Then, it should return the pointtracker object
         '''
-        markerTrackers_mIdx = self.get_markers()
-        return markerTrackers_mIdx[markerIdx]
+        #markerTrackers_mIdx = self.get_markers()
+        #return markerTrackers_mIdx[markerIdx]
+        
+        for tIdx , tracker in enumerate(self.trackers):
+                
+            if( markerIdx in tracker.marker_ids ):
+                    
+                    return tracker
+                
+        print 'get_MarkerTracker: Could not find marker ' + str(markerIdx) + ' in trackers.'
     
-    def returnPointerToMarker(self,markerIdx):
-        return self.get_MarkerTracker(markerIdx)
+    def linkToMarker(self,markerIdx,targetNode3D):
+
+        self.get_MarkerTracker(markerIdx).link_marker(markerIdx,targetNode3D)
         
     def get_MarkerCond(self,markerIdx):
         '''Returns marker condition
@@ -1023,6 +1036,32 @@ class phasespaceInterface(viz.EventClass):
             rigidBody.save()
         else: print 'Error: Rigid body not initialized'
     
+        
+        #self.toggleUpdateWithMarker()
+
+#    def showMarkers(self):
+#        
+#        
+#        class mocapMarkerSphere(visObj):
+#            def __init__(self,mocap,room,markerNum):
+#                #super(visObj,self).__init__(room,'sphere',.04,[0,0,0],[.5,0,0],1)
+#
+#                position = [0,0,0]
+#                shape = 'sphere'
+#                color=[.5,0,0]
+#                size = [.015]
+#                
+#                visObj.__init__(self,room,shape,size,position,color)
+#                
+#                #self.physNode.enableMovement()
+#                self.markerNumber = markerNum
+#                self.mocapDevice = mocap
+#                mocap.linkToMarker(markerNum,self.node3D)
+#
+#        markerSphere_mIdx = []
+#        
+#        for mIdx in range(len( experimentObject.config.mocap.owlParamMarkerCount)):
+#            markerSphere_mIdx.append( mocapMarkerSphere(experimentObject.config.mocap, experimentObject.room, mIdx) )
         
 if __name__ == "__main__":
   
