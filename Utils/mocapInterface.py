@@ -35,7 +35,10 @@ Pose = collections.namedtuple('Pose', 'pos quat cond frame')
 BufferedTrackers = collections.namedtuple('BufferedTrackers', 'time trackerList frame')
 
 class PointTracker(viz.EventClass):
-    '''Track a set of markers on the phasespace server.'''
+    '''Track a set of markers on the phasespace server.
+        self._raw_markers is the PS format set of markers
+        self._markers is the vizard format set of markers
+    '''
 
     def __init__(self, index, marker_ids):
         super(PointTracker, self).__init__()
@@ -138,7 +141,6 @@ class RigidTracker(PointTracker):
         super(RigidTracker, self).__init__(index, marker_ids)
 
         self.markerID_midx = []
-        self.markerPos_midx_localXYZ = []
         
         self.center_marker_ids = center_marker_ids
         
@@ -178,16 +180,18 @@ class RigidTracker(PointTracker):
         #rof
             
         self.markerID_midx = markerID
-        self.markerPos_midx_localXYZ = markerPos
         
         openfile.close()
         
         print 'Mocap: Read ' + str(count) + ' lines from the rigid body file.'
         if count == 0: print 'This is likely to cause OWL.init() to fail'
-
-    def _getLocalPositions(self):
+    
+    
+    def _getLocalPositions(self, psFormat = False):
         
-        ''' Returns markerPositions within a local frame of reference
+        ''' 
+        Returns markerPositions within a local frame of reference\
+        Vizard format position
         Returns
         -------
         A list of tuples
@@ -203,9 +207,11 @@ class RigidTracker(PointTracker):
             
             for mIdx in range(len(self.marker_ids)):
 
-                #mID = self.marker_ids(m)
-                #marker = self._raw_markers[mIdx]
-                marker = self._markers[mIdx]
+                if( psFormat == True ):
+                    print 'Getting marker data in raw, PS format'
+                    marker = self._raw_markers[mIdx]
+                else:
+                    marker = self._markers[mIdx]
 
                 if marker is None or not 0 < marker.cond : #or not 0 < marker.cond < 100:
                     logging.error('missing marker %d for reset', mIdx)
@@ -215,23 +221,28 @@ class RigidTracker(PointTracker):
                 globalPositions.append(marker.pos)
 
                 if mIdx in self.center_marker_ids:
+                    #print 'COM includes ' + str(mIdx)
+                    # com = list of markers that define the center of mass
+                    # (markers in self.center_marker_ids)
                     com.append(marker.pos)
         
         # compute center of mass
-        cx = sum(x for x, _, _ in com) / len(com)
+        cx = sum(x for x, _, _ in com) / len(com) 
         cy = sum(y for _, y, _ in com) / len(com)
         cz = sum(z for _, _, z in com) / len(com)
         logging.info('body center: (%s, %s, %s)', cx, cy, cz)
     
 
         # Construct marker_map, a dictionary of pos tuples
-        # using marker ID's as keys
-        localPositions = []
+        # Keys = marker ID's
+        # Values = XYZ in local coordinate space with an origin = to COM 
+        
+        localPositions_mIdx_xyz = []
         for i, (x, y, z) in enumerate(globalPositions):
-            localPositions.append((x - cx, y - cy, z - cz))
-            
-        return localPositions
-            
+            localPositions_mIdx_xyz.append((x - cx, y - cy, z - cz))
+                
+        return localPositions_mIdx_xyz 
+        
     def get_pose(self):
         '''Return the current pose for our rigid body.
 
@@ -347,7 +358,7 @@ class RigidTracker(PointTracker):
         #localPositions = self._getLocalPositions()
                             
         # Get old marker id's and new positions
-        oldRigidID_midx = self._getLocalPositions()
+        oldRigidID_midx = self._getLocalPositions(psFormat = True)
         
         for idx in range(len(oldRigidID_midx)):
             posString = str(oldRigidID_midx[idx][0]) + ' ' + str(oldRigidID_midx[idx][1]) + ' ' + str(oldRigidID_midx[idx][2]);
@@ -375,21 +386,25 @@ class RigidTracker(PointTracker):
 
         logging.info('resetting rigid body %s', self.marker_ids)
 
-        localPositions = self._getLocalPositions()
+        localPositionsPS_mIdx_xyz = self._getLocalPositions( psFormat = True)
         
-        if (localPositions == -1):
+#        localPositionsPS_mIdx_xyz = []
+#        for viz_XYZ in localPositionsViz_mIdx_xyz:
+#            ps_XYZ = (-1000*viz_XYZ[2],1000*viz_XYZ[1],-1000*viz_XYZ[0])
+#            localPositionsPS_mIdx_xyz.append(ps_XYZ)
+                
+        if (localPositionsPS_mIdx_xyz == -1):
             return
-            
+        
         OWL.owlTracker(self._index, OWL.OWL_DISABLE)
         
-        for i, (x, y, z) in enumerate(localPositions):
+        for i, (x, y, z) in enumerate(localPositionsPS_mIdx_xyz):
         
             OWL.owlMarkerfv(OWL.MARKER(self._index, i),
                             OWL.OWL_SET_POSITION,
                             [x,y,z])
                             
         OWL.owlTracker(self._index, OWL.OWL_ENABLE)
-
 
 class trackerBuffer(viz.EventClass):
     def __init__(self):

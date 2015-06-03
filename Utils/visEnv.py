@@ -66,7 +66,8 @@ class room():
             self.drawStandingBox = config.expCfg['experiment']['drawStandingBox']
             self.standingBoxOffsetX = config.expCfg['room']['standingBoxOffset_X']
             self.standingBoxOffsetZ = config.expCfg['room']['standingBoxOffset_Z']
-        
+            self.isWalkingDownAxis = False
+            
             self.isLeftHanded = float(config.expCfg['experiment']['isLeftHanded'])
             
             if( self.drawStandingBox  ):
@@ -158,7 +159,6 @@ class room():
         # Draw the standing box
         boxSizeInfo = [ self.standingBoxSize_WHL[0], self.standingBoxSize_WHL[1],self.standingBoxSize_WHL[2]]
 
-<<<<<<< HEAD
         self.standingBox = vizshape.addBox( boxSizeInfo,color=viz.GREEN,splitFaces = True,back=True)        
         self.standingBox.setPosition([self.standingBoxOffsetX, 0.1, self.standingBoxOffsetZ])
         self.standingBox.emissive([0,1,0])
@@ -168,45 +168,6 @@ class room():
         self.standingBox.setParent(self.objects)
         self.standingBox.disable(viz.CULL_FACE)
 
-=======
-        self.standingBox = vizshape.addBox( boxSizeInfo,color=viz.GREEN,splitFaces = True,back=True)
-        self.standingBox.emissive([0,1,0])
-        self.standingBox.alpha(0.5)
-
-        # Fix Me: Kamran
-        self.standingBox.setPosition([self.standingBoxOffsetX, 0.1, self.standingBoxOffsetZ])
-
-#        self.standingBox.color(1,0,0,node='left')            
-#        self.standingBox.emissive(1,0,0,node='left')
-#        self.standingBox.alpha(0.7,node='left')
-
-        self.standingBox.setParent(self.objects)
-        self.standingBox.disable(viz.CULL_FACE)
-
-               
-#    def createStandingBox(self):
-#        
-#            # Draw the standing box
-#            
-#            boxSizeInfo = [ self.standingBoxSize_WHL[0], self.standingBoxSize_WHL[1],self.standingBoxSize_WHL[2]]
-#            
-#            self.standingBox = vizshape.addBox( boxSizeInfo,color=viz.GREEN,splitFaces = True,back=True)
-#            self.standingBox.emissive([0,1,0])
-#            self.standingBox.alpha(0.5)
-#            
-#            if( self.isLeftHanded ): self.standingBoxOffset_X *= -1;
-#            
-#            self.standingBox.setPosition(float(-self.standingBoxOffset_X),self.standingBoxSize_WHL[1]/2,.01)            
-#
-#            self.standingBox.color(1,0,0,node='back')            
-#            self.standingBox.emissive(1,0,0,node='back')
-#            self.standingBox.alpha(0.7,node='back')
-#
-#            self.standingBox.setParent(self.objects)
-#            #self.standingBox.disable(viz.CULLING)
-#            self.standingBox.disable(viz.CULL_FACE)
-#        
->>>>>>> origin/Replaced-vrLabConfig-with-ConfigClass
     def setLighting(self):
         
         viz.MainView.getHeadLight().disable()
@@ -460,16 +421,20 @@ class visObj(viz.EventClass):
         self.physNode = self.parentRoom.physEnv.makePhysNode(self.shape,self.position,self.size)
         self.setVelocity([0,0,0])
         self.physNode.disableMovement()
-        print 'PhysNode enabled'
+        #print 'PhysNode enabled'
         
     def linkVisToPhys(self):
 
         #print self.physNode.node3D.getPosition()
         self.updateAction = viz.link( self.physNode.node3D, self.node3D )
-
+        self.updateAction.setDstFlag(viz.ABS_GLOBAL)
+        self.updateAction.setSrcFlag(viz.ABS_GLOBAL)
+        
     def linkPhysToVis(self):
         
         self.updateAction = viz.link( self.node3D, self.physNode.node3D)
+        self.updateAction.setDstFlag(viz.ABS_GLOBAL)
+        self.updateAction.setSrcFlag(viz.ABS_GLOBAL)
         
     def setBounciness(self,bounciness):        
 

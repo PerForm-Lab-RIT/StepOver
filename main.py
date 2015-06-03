@@ -447,10 +447,6 @@ class Experiment(viz.EventClass):
 		self.hmdLinkedToView = False		
 
 		self.directionArrow = vizshape.addArrow(color=viz.BLUE, axis = vizshape.AXIS_X, length=0.2,radiusRatio=0.05 )
-<<<<<<< HEAD
-=======
-		#visEnv.visObj(self.room,'arrow',size=[.1,.1,.1],position=[-1.1,0,1.4],viz.PURPLE)
->>>>>>> origin/Replaced-vrLabConfig-with-ConfigClass
 		self.directionArrow.setEuler([270,0,0])
 		self.directionArrow.setPosition([-1.1,0,-1.5])
 		
@@ -771,10 +767,11 @@ class Experiment(viz.EventClass):
 				mocapSys.resetRigid('shutter')
 			elif key == 'L':
 				mocapSys.resetRigid('left')
-				self.resizeFootBox('left')
+				#self.resizeFootBox('left')
+				
 			elif key == 'R':
 				mocapSys.resetRigid('right')
-				self.resizeFootBox('right')
+				#self.resizeFootBox('right')
 					
 			if( viz.key.isDown( viz.KEY_CONTROL_L )):
 				
@@ -964,26 +961,26 @@ class Experiment(viz.EventClass):
 		return outputString #%f %d' % (viz.getFrameTime(), self.inCalibrateMode)
 		
 	def toggleWalkingDirection(self):
-		print 'FIXME: toggleWalkingDirection currently out of order!'
-		pass
 		
-#		print 'Changing Direction From ' + str(self.room.isWalkingDownAxis)+' to ' + str(not(self.room.isWalkingDownAxis))
-#		
-#		self.room.isWalkingDownAxis = not(self.room.isWalkingDownAxis)
-#		
-#		if( self.room.isWalkingDownAxis ):
-#			
-#			self.directionArrow.setEuler([90,0,0])			
-#			self.room.standingBox.setPosition([0.0, 0.1, 2.4])
-#			
-#			#self.room.standingBox.setPosition([-0.1, 0.01, 1.7])
-#			# 2.6 to the front
-#			
-#		else:
-#			self.directionArrow.setEuler([270,0,0])
-#			self.room.standingBox.setPosition([0.0, 0.1, -3])
-#			#self.room.standingBox.setPosition([-0.1, 0.01, -2.4])
-#			# 3.8 to the back
+		print 'Changing Direction From ' + str(self.room.isWalkingDownAxis)+' to ' + str(not(self.room.isWalkingDownAxis))
+		
+		# Flip walking direction indicator
+		self.room.isWalkingDownAxis = not(self.room.isWalkingDownAxis)
+
+		self.standingBoxOffsetX = self.config.expCfg['room']['standingBoxOffset_X']
+		self.standingBoxOffsetZ = self.config.expCfg['room']['standingBoxOffset_Z']
+		
+		
+		
+		if( self.room.isWalkingDownAxis ):
+			
+			self.directionArrow.setEuler([90,0,0])			
+			self.room.standingBox.setPosition([self.standingBoxOffsetX, 0.1, self.standingBoxOffsetZ])
+			
+		else:
+			self.directionArrow.setEuler([270,0,0])
+			self.room.standingBox.setPosition([self.standingBoxOffsetX, 0.1, -self.standingBoxOffsetZ])
+			
 		
 		
 #	def toggleWalkingDirection(self):
@@ -1195,11 +1192,15 @@ class Experiment(viz.EventClass):
 		config = self.config
 		leftFoot = self.room.leftFoot
 		leftFoot.node3D.color([0, 0, .3])
+		
+		# First, link visual to rigid body
 		lFootRigid = config.mocap.returnPointerToRigid('leftFoot')
 		lFootRigid.link_pose(leftFoot.node3D)
+		
+		# Now, link physical to visal
 		leftFoot.enablePhysNode()
 		leftFoot.physNode.isLinked = 1
-		viz.link( leftFoot.node3D, leftFoot.physNode.node3D)
+		viz.link( leftFoot.node3D, leftFoot.physNode.node3D, priority = viz.PRIORITY_LINKS+1)
 		
 		rightFoot = self.room.rightFoot
 		rightFoot.node3D.color([0.5, 0, 0])
@@ -1207,7 +1208,7 @@ class Experiment(viz.EventClass):
 		rFootRigid.link_pose(rightFoot.node3D)
 		rightFoot.enablePhysNode()
 		rightFoot.physNode.isLinked = 1
-		viz.link( rightFoot.node3D, rightFoot.physNode.node3D)
+		viz.link( rightFoot.node3D, rightFoot.physNode.node3D,priority = viz.PRIORITY_LINKS+1)
 		
 	def resizeFootBox(self,footSide):
 		''' 
@@ -1231,34 +1232,35 @@ class Experiment(viz.EventClass):
 			
 		mocap = self.config.mocap
 	
-		footHeightFromGround = 0 
 		footRigid = mocap.returnPointerToRigid(footSide)
 	
 		# MOCAP: Positions of markers on rigid body in world coordinates
 		markerDict = footRigid.get_markers()
 		
+		# Get marker positions
 		markerPosViz_mIdx_XYZ = [markerDict[mKey].pos for mKey in markerDict.keys()]
-			
-		#markerPosViz_mIdx_XYZ = mocap.getRigidMarkerPositions(footSide)
-
+		
+		# Get X / Z positions
 		markerXVals_mIdx = [markerPosViz_mIdx_XYZ[mIdx][0] for mIdx in range(len(markerPosViz_mIdx_XYZ))]
 		markerZVals_mIdx = [markerPosViz_mIdx_XYZ[mIdx][2] for mIdx in range(len(markerPosViz_mIdx_XYZ))]
 
 		if( markerPosViz_mIdx_XYZ == -1 ): # or len(markerPosViz_mIdx_XYZ) < expected number
 			print 'Error: Could not see all foot markers'
 			return
-			
+		
+		# Set length and width
+		#footWidth = max(markerXVals_mIdx) - min(markerXVals_mIdx)
+		#footLength = (max(markerZVals_mIdx) - min(markerZVals_mIdx))
+		footLength = max(markerXVals_mIdx) - min(markerXVals_mIdx)
+		footWidth = (max(markerZVals_mIdx) - min(markerZVals_mIdx))
+		
+		# Take average height of center markers
 		sumOfMarkerHeights = 0
 		
 		for mIdx in footRigid.center_marker_ids:
 			sumOfMarkerHeights = sumOfMarkerHeights + markerPosViz_mIdx_XYZ[mIdx][1]
 			
-		avgMarkerHeight = sumOfMarkerHeights / len(footRigid.center_marker_ids)
-		
-		# one centimeter  buffer
-		footLength = max(markerXVals_mIdx) - min(markerXVals_mIdx)
-		footHeight = avgMarkerHeight
-		footWidth = (max(markerZVals_mIdx) - min(markerZVals_mIdx))
+		footHeight = sumOfMarkerHeights / len(footRigid.center_marker_ids)
 		
 		footLWH = [footLength, footWidth, footHeight]
 		
@@ -1268,17 +1270,17 @@ class Experiment(viz.EventClass):
 		elif( footSide == 'right' ):
 			footObj= self.room.rightFoot
 		
-		# Return the length, widtRLh and height
-		#footVizNode.size(
 		footObj.size = footLWH
 		
 		print 'Making basic node3D of size ' + str(footLWH)
-		
+		# Erase vis and phys component of foot 
 		footObj.removePhysNode()
 		footObj.node3D.remove()
 		
+		# ...rebuild vis object according to new dimensions in footObj.size
 		footObj.makeBasicVizShape()
 		
+		# ...mow, link to rigid bodies and turn on physNodes
 		self.setupFeet()
 			
 class eventFlag(viz.EventClass):
@@ -1510,7 +1512,7 @@ class trial(viz.EventClass):
 
 			self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
 			
-			self.obsObj.node3D.disable(viz.RENDERING)
+			#self.obsObj.node3D.disable(viz.RENDERING)
 			
 			# Draw a line on the ground
 			lineHeight = 0.001
@@ -1542,111 +1544,8 @@ class trial(viz.EventClass):
 			
 			self.obsObj = obstacleObj(room,self.obsHeightM,obsLoc)
 			print'Placing Obstacle at', obsLoc, 'height', self.obsHeightM
-<<<<<<< HEAD
 
-=======
-#
->>>>>>> origin/Replaced-vrLabConfig-with-ConfigClass
-##	def placeObs(self,room):
-##		
-##		#print 'Creating object at ' + str(obsLoc)
-##		
-##		self.obsHeightM = self.config.legLengthCM * self.obsHeightLegRatio / 100
-##		#print str(self.obsHeightLegRatio) + ' + ' + str(self.config.legLengthCM) + ' = ' + str(self.obsHeightM)
-##		
-##		# Obs Height Hack (Kamran) just for Test
-##		#self.obsHeightM = 0.315
-##		obsSize = [0.015,1.2,self.obsHeightM] # lwh
-##		obsLoc = [self.obsXLoc,self.obsHeightM/2,self.obsZLoc]
-##		
-##		self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
-##		self.obsObj.enablePhysNode()
-##		
-##		if( self.objIsVirtual == False ):
-##			
-##			self.obsObj.visNode.disable(viz.RENDERING)
-##			# Draw a line on the ground
-##			lineHeight = 0.001
-##			lineSize = [0.015,5.0,lineHeight] # lwh
-##			obsLoc = [self.obsXLoc,lineHeight/2,self.obsZLoc]
-##			self.lineObj = visEnv.visObj(room,'box',lineSize,obsLoc,self.obsColor_RGB)
-##			
-##			if( self.trialType == 't4' ):
-##				displayText = 'Short'
-##				#print 'Obs Height =>', displayText, self.trialType
-##			elif( self.trialType == 't5' ):
-##				displayText = 'Med'
-##				#print 'Obs Height =>', displayText, self.trialType
-##			elif( self.trialType == 't6' ):
-##				displayText = 'Tall'
-##				#print 'Obs Height =>', displayText, self.trialType
-##			else:
-##				print 'Object height invalid! Trial Type :', self.trialType
-##				displayText = 'Unknown!!'
-##				return
-##				
-##			self.objectSizeText = viz.addText3D(displayText)
-##			self.objectSizeText.setEuler([-90,90,0], viz.ABS_GLOBAL)
-##			self.objectSizeText.setPosition([-1.,.001,1.3],viz.ABS_GLOBAL)
-##			scale = 0.1
-##			self.objectSizeText.setScale([scale ,scale ,scale])
-##		else:
-##			print'Placing Obstacle at', obsLoc, 'size', obsSize
-#
-#	def placeObs(self,room):
-#		#experimentObject.currentTrial.obsObj.collisionBox.physNode.body.getPosition()
-#		
-#		#print 'Creating object at ' + str(obsLoc)
-#		
-#		self.obsHeightM = self.config.legLengthCM * self.obsHeightLegRatio / 100
-#		#print str(self.obsHeightLegRatio) + ' + ' + str(self.config.legLengthCM) + ' = ' + str(self.obsHeightM)
-#		
-#		#obsSize = [0.015,1.2,self.obsHeightM] # lwh
-#		obsLoc = [self.obsXLoc,0,self.obsZLoc]
-#		
-#		import obstacleClass
-#		#self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
-#		#self.obsObj.enablePhysNode()
-#		
-#		if( self.objIsVirtual == False ):
-#
-#			# This is an invisible box used for collision detection.
-#			# The top of the box is coincident with the white crossbar
-#			self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
-#			self.obsObj.visNode.disable(viz.RENDERING)
-#			
-#			# Draw a line on the ground
-#			lineHeight = 0.001
-#			lineSize = [0.015,5.0,lineHeight] # lwh
-#			obsLoc = [self.obsXLoc,lineHeight/2,self.obsZLoc]
-#			self.lineObj = visEnv.visObj(room,'box',lineSize,obsLoc,self.obsColor_RGB)
-#			
-#			if( self.trialType == 't4' ):
-#				displayText = 'Short'
-#				#print 'Obs Height =>', displayText, self.trialType
-#			elif( self.trialType == 't5' ):
-#				displayText = 'Med'
-#				#print 'Obs Height =>', displayText, self.trialType
-#			elif( self.trialType == 't6' ):
-#				displayText = 'Tall'
-#				#print 'Obs Height =>', displayText, self.trialType
-#			else:
-#				print 'Object height invalid! Trial Type :', self.trialType
-#				displayText = 'Unknown!!'
-#				return
-#				
-#			self.objectSizeText = viz.addText3D(displayText)
-#			self.objectSizeText.setEuler([-90,90,0], viz.ABS_GLOBAL)
-#			self.objectSizeText.setPosition([-1.,.001,1.3],viz.ABS_GLOBAL)
-#			scale = 0.1
-#			self.objectSizeText.setScale([scale ,scale ,scale])
-#		
-#		else:
-#			
-#			self.obsObj = obstacleObj(room,self.obsHeightM,obsLoc)
-#			
-#			print'Placing Obstacle at', obsLoc, 'height', self.obsHeightM
-			
+		
 	def removeObs(self):
 
 		if( self.objectSizeText != -1 and (self.trialType == 't4' or self.trialType == 't5'  or self.trialType == 't6' )):
@@ -1711,12 +1610,6 @@ lr = experimentObject.config.mocap.returnPointerToRigid('left')
 
 lf.node3D.getPosition()
 lr.get_position()
-<<<<<<< HEAD
-=======
-
-#sr = experimentObject.config.mocap.returnPointerToRigid('shutter')
-
->>>>>>> origin/Replaced-vrLabConfig-with-ConfigClass
 
 #demoMode(experimentObject)
 
@@ -1725,9 +1618,11 @@ lr.get_position()
 
 # If you want to see spheres for each marker
 
+def checkObs():
+	print experimentObject.currentTrial.obsObj.getPosition()
+	print experimentObject.currentTrial.obsObj.collisionBox.node3D.getPosition(viz.ABS_GLOBAL)
+	print experimentObject.currentTrial.obsObj.collisionBox.physNode.body.getPosition()
 
-vizshape.addAxes()
-
-#vizshape.addAxes()
+vizshape.addAxes().setScale([0.5, 0.5, 0.5])
 
 #vizshape.addBox(size=(0.05,0.05,0.05))
