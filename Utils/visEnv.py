@@ -64,14 +64,17 @@ class room():
             self.wallPos_NegX = -self.roomWidth/2 + self.translateOnX;
             
             self.drawStandingBox = config.expCfg['experiment']['drawStandingBox']
-            self.standingBoxOffsetX = config.expCfg['room']['standingBoxOffset_X']
-            self.standingBoxOffsetZ = config.expCfg['room']['standingBoxOffset_Z']
             self.isWalkingDownAxis = False
             
             self.isLeftHanded = float(config.expCfg['experiment']['isLeftHanded'])
             
             if( self.drawStandingBox  ):
+                
                 self.standingBoxOffset_X = config.expCfg['room']['standingBoxOffset_X']
+                
+                self.standingBoxOffset_negZ = config.expCfg['room']['standingBoxOffset_negZ']
+                self.standingBoxOffset_posZ = config.expCfg['room']['standingBoxOffset_posZ']
+                
                 self.standingBoxSize_WHL = map(float, config.expCfg['room']['standingBoxSize_WHL'])
             
             self.shiftWorldRelToUser_XYZ = [0,0,0]
@@ -159,8 +162,10 @@ class room():
         # Draw the standing box
         boxSizeInfo = [ self.standingBoxSize_WHL[0], self.standingBoxSize_WHL[1],self.standingBoxSize_WHL[2]]
 
-        self.standingBox = vizshape.addBox( boxSizeInfo,color=viz.GREEN,splitFaces = True,back=True)        
-        self.standingBox.setPosition([self.standingBoxOffsetX, 0.1, self.standingBoxOffsetZ])
+        self.standingBox = vizshape.addBox( boxSizeInfo,color=viz.GREEN,splitFaces = True,back=True)
+
+        self.standingBox.setPosition([self.standingBoxOffset_X, 0.1, self.standingBoxOffset_negZ])
+        
         self.standingBox.emissive([0,1,0])
         self.standingBox.alpha(0.5)
 

@@ -647,8 +647,10 @@ class Experiment(viz.EventClass):
 
 					self.eventFlag.setStatus(4)
 					
-					bouncePos_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
-					self.collisionLocOnObs_XYZ = obstacle.physNode.collisionPosLocal_XYZ
+					collisionLoc_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
+					self.currentTrial.collisionLocOnObs_XYZ = collisionLoc_XYZ
+					
+					#obstacle.physNode.collisionPosLocal_XYZ
 					
 					#print 'Frame: ' + str(viz.getFrameNumber()) + ' collision at: ' + str(self.collisionLocOnObs_XYZ)
 					
@@ -659,12 +661,14 @@ class Experiment(viz.EventClass):
 				elif( physNode1 == rightFoot.physNode and physNode2 == obstacle.physNode ):
 					
 					self.eventFlag.setStatus(5)
-					bouncePos_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
+					collisionLoc_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
 
-					self.collisionLocOnObs_XYZ = obstacle.physNode.collisionPosLocal_XYZ
+					self.currentTrial.collisionLocOnObs_XYZ = collisionLoc_XYZ
 					
+					#obstacle.physNode.collisionPosLocal_XYZ
 					#print 'Collided Objects are Right Foot and Obstacle at\n', self.collisionLocOnObs_XYZ
 					#self.currentTrial.removeObs()
+					
 					viz.playSound(soundBank.beep)
 			
 	def start(self):
@@ -810,27 +814,27 @@ class Experiment(viz.EventClass):
 		
 		outputString = outputString + ' eventFlag %d ' % (self.eventFlag.status)
 		
-		if( self.eventFlag.status == 1):
+		if( self.eventFlag.status == 1 ):
 			
 			outputString = outputString + ' trialType %s ' % (self.currentTrial.trialType)
 			
 			## =======================================================================================================
 			## Obstacle Height & Location 
 			## =======================================================================================================
-			outputString = outputString + '[ Obstacle_XYZ %f %f %f ] ' % ( self.currentTrial.obsXLoc, self.currentTrial.obsHeightM, self.currentTrial.obsZLoc)
+			outputString = outputString + '[ Obstacle_XYZ %f %f %f ] ' % (self.currentTrial.obsLoc_XYZ[0],self.currentTrial.obsLoc_XYZ[1],self.currentTrial.obsLoc_XYZ[2])
+			outputString = outputString + ' obstacleHeight %d ' % (self.currentTrial.obsHeightM)
 			outputString = outputString + ' isWalkingDownAxis %d ' % (self.room.isWalkingDownAxis)
 		
-		#FIXME: Collision locatoin is not set correctly in _checkForCollisions
 		if( self.eventFlag.status == 4 or self.eventFlag.status == 5 ):		
-			
-			collisionPosLocal_XYZ = self.currentTrial.collisionPosLocal_XYZ
+
+			collisionPosLocal_XYZ = self.currentTrial.collisionLocOnObs_XYZ
 			outputString = outputString + ' collisionLocOnObs_XYZ [ %f %f %f ] ' % (collisionPosLocal_XYZ[0], collisionPosLocal_XYZ[1], collisionPosLocal_XYZ[2])
 		
 		## =======================================================================================================
 		## VisNode body positions and quaternions
 		## =======================================================================================================
 		
-		##########
+		##################################################
 		# Right foot
 		
 		rightFootPos_XYZ = []
@@ -990,44 +994,27 @@ class Experiment(viz.EventClass):
 		return outputString #%f %d' % (viz.getFrameTime(), self.inCalibrateMode)
 		
 	def toggleWalkingDirection(self):
+		'''
+		Relocates the standing box / box in which the subject stands to see the obstacle
+		'''
 		
 		print 'Changing Direction From ' + str(self.room.isWalkingDownAxis)+' to ' + str(not(self.room.isWalkingDownAxis))
 		
 		# Flip walking direction indicator
 		self.room.isWalkingDownAxis = not(self.room.isWalkingDownAxis)
-
-		self.standingBoxOffsetX = self.config.expCfg['room']['standingBoxOffset_X']
-		self.standingBoxOffsetZ = self.config.expCfg['room']['standingBoxOffset_Z']
-		
+		self.standingBoxOffsetX = self.room.standingBoxOffset_X
 		
 		
 		if( self.room.isWalkingDownAxis ):
 			
 			self.directionArrow.setEuler([90,0,0])			
-			self.room.standingBox.setPosition([self.standingBoxOffsetX, 0.1, self.standingBoxOffsetZ])
+			standingBoxZPos = self.room.standingBoxOffset_posZ
+			self.room.standingBox.setPosition([self.standingBoxOffsetX, 0.1, standingBoxZPos])
 			
 		else:
 			self.directionArrow.setEuler([270,0,0])
-			self.room.standingBox.setPosition([self.standingBoxOffsetX, 0.1, -self.standingBoxOffsetZ])
-			
-		
-		
-#	def toggleWalkingDirection(self):
-#		print 'Changing Direction From ' + str(self.room.isWalkingUpAxis)+' to ' + str(not(self.room.isWalkingUpAxis))
-#		self.room.isWalkingUpAxis = not(self.room.isWalkingUpAxis)
-#		
-#		if( self.room.isWalkingUpAxis ):
-#			self.directionArrow.setEuler([90,0,0])
-#			self.room.standingBox.setPosition([0.0, 0.1, 2.4 ])
-#			
-#			#self.room.standingBox.setPosition([-0.1, 0.01, 1.7])
-#			# 2.6 to the front
-#			
-#		else:
-#			self.directionArrow.setEuler([270,0,0])
-#			self.room.standingBox.setPosition([0.0, 0.1, -3.])
-#			#self.room.standingBox.setPosition([-0.1, 0.01, -2.4])
-#			# 3.8 to the back
+			standingBoxZPos = self.room.standingBoxOffset_negZ
+			self.room.standingBox.setPosition([self.standingBoxOffsetX, 0.1, standingBoxZPos])
 
 	def endTrial(self):
 		
@@ -1450,6 +1437,8 @@ class trial(viz.EventClass):
 		self.config = config
 		self.trialType = trialType
 		self.room = room
+		self.obsLoc_XYZ = []
+		self.collisionLocOnObs_XYZ = [-1,-1,-1]
 		
 		## State flags
 		self.subIsInBox = False
@@ -1472,7 +1461,7 @@ class trial(viz.EventClass):
 		self.collisionLocGlobal_XYZ = [nan, nan, nan]
 		
 		self.lineObj = -1
-		#self.totalTrialNumber = 
+		
 		###########################################################################################
 		###########################################################################################
 		## Get fixed variables here
@@ -1485,12 +1474,10 @@ class trial(viz.EventClass):
 		
 		self.obsHeightLegRatio = float(config.expCfg['trialTypes'][self.trialType]['obsHeightLegRatio'])
 		
-		self.obsZLoc_distType = []
-		self.obsZLoc_distParams = []
-		self.obsZLoc = []
+		self.obsDistance_distType = []
+		self.obsDistance_distParams = []
+		self.obsDistance = []
 		
-		self.obsXLoc = config.expCfg['room']['standingBoxOffset_X']
-				
 		# The rest of variables are set below, by drawing values from distributions
 #		
 #		Example: ballDiameter and gravity
@@ -1514,7 +1501,7 @@ class trial(viz.EventClass):
 			if "_distType" in variablesInATrial[varIdx]:
 				# Extracts that variable typeobsXLoc_distType
 				varName = variablesInATrial[varIdx][0:-9]
-				#print '===>Variable Name:', varName
+				#print '===> Variable Name:', varName
 				# _setValueOrUseDefault assigns a value according to the distribution type
 				distType, distParams, value = self._setValueOrUseDefault(config,varName)
 									
@@ -1550,10 +1537,17 @@ class trial(viz.EventClass):
 		#print 'Creating object at ' + str(obsLoc)
 		
 		self.obsHeightM = self.config.legLengthCM * self.obsHeightLegRatio / 100
-		#print str(self.obsHeightLegRatio) + ' + ' + str(self.config.legLengthCM) + ' = ' + str(self.obsHeightM)
 		
-		#obsSize = [0.015,1.2,self.obsHeightM] # lwh
-		obsLoc = [self.obsXLoc,0,self.obsZLoc]
+		self.obsZPos = []
+		if( self.room.isWalkingDownAxis ):
+
+			self.obsZPos = self.room.standingBoxOffset_posZ - self.obsDistance
+			
+		else:
+			self.obsZPos = self.room.standingBoxOffset_negZ + self.obsDistance
+			
+		
+		self.obsLoc_XYZ = [self.room.standingBoxOffset_X,0,self.obsZPos]
 		
 		import obstacleClass
 		#self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
@@ -1561,14 +1555,16 @@ class trial(viz.EventClass):
 		
 		if( self.objIsVirtual == False ):
 
-			self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
+			self.obsObj = visEnv.visObj(room,'box',obsSize,self.obsLoc_XYZ,self.obsColor_RGB)
 			
 			#self.obsObj.node3D.disable(viz.RENDERING)
 			
 			# Draw a line on the ground
 			lineHeight = 0.001
 			lineSize = [0.015,5.0,lineHeight] # lwh
-			obsLoc = [self.obsXLoc,lineHeight/2,self.obsZLoc]
+			
+			obsLoc = [self.room.standingBoxOffset_X,lineHeight/2,self.obsZPos]
+
 			self.lineObj = visEnv.visObj(room,'box',lineSize,obsLoc,self.obsColor_RGB)
 			
 			if( self.trialType == 't4' ):
@@ -1593,8 +1589,8 @@ class trial(viz.EventClass):
 		
 		else:
 			
-			self.obsObj = obstacleObj(room,self.obsHeightM,obsLoc)
-			print'Placing Obstacle at', obsLoc, 'height', self.obsHeightM
+			self.obsObj = obstacleObj(room,self.obsHeightM,self.obsLoc_XYZ)
+			print'Placing Obstacle at', self.obsLoc_XYZ, 'height', self.obsHeightM
 
 		
 	def removeObs(self):
