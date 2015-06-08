@@ -16,6 +16,7 @@ from ctypes import * # eyetrackka
 import winsound
 import virtualPlane
 import vizinput
+import time
 
 #import visEnv12
 #import physEnv
@@ -34,7 +35,6 @@ from validate import Validator
 import platform
 import os.path
 import vizconnect
-
 
 
 expConfigFileName = 'exampleExpConfig.cfg'
@@ -515,7 +515,6 @@ class Experiment(viz.EventClass):
 		# DVR snaps a shot of the frame, records eye data, and contents of self.writables is written out to the movie
 		self.callback(viz.POST_SWAP_EVENT, self.config.__record_data__, viz.PRIORITY_LAST_UPDATE)
 	
-		
 		# Use text output
 		now = datetime.datetime.now()
 		dateTimeStr = str(now.year) + '-' + str(now.month) + '-' + str(now.day) + '-' + str(now.hour) + '-' + str(now.minute)
@@ -523,7 +522,7 @@ class Experiment(viz.EventClass):
 		dataOutPutDir = config.sysCfg['writer']['outFileDir']
 		
 		self.expDataFile = open(dataOutPutDir + 'exp_data-' + dateTimeStr + '.txt','w+')
-		#self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE, self.writeDataToText)
+		self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE, self.writeDataToText)
 
 		# Create an event flag object
 		# This var is set to an int on every frame
@@ -610,7 +609,7 @@ class Experiment(viz.EventClass):
 					print 'Starting trial ==> Type', self.currentTrial.trialType
 					self.eventFlag.setStatus(1)
 					self.currentTrial.approachingObs = True
-					self.eventFlag.setStatus(6)
+					self.currentTrial.startTime = time.clock()
 					
 					# Start data collection
 					viz.playSound(soundBank.bubblePop)
@@ -745,62 +744,31 @@ class Experiment(viz.EventClass):
 			self.config.eyeTrackingCal.updateOffset('s')
 			self.config.eyeTrackingCal.updateOffset('w')
 		
-#		elif( 'l' == key):
-#			self.inputLegLength()
-#			
 		if (self.inCalibrateMode is False):
 			if key == 'D':
 				
 				dvrWriter = self.config.wRRriter;
 				dvrWriter.toggleOnOff()
-				
-#			if key == 'M':
-#				
-#				# Toggle the link between the HMD and Mainview
-#				if( mocapSys ):
-#					if( mocapSys.mainViewUpdateAction ):
-#						mocapSys.disableHMDTracking()
-#					else:
-#						mocapSys.enableHMDTracking()
-			
+							
 			elif key == 'S':
-				mocapSys.resetRigid('shutter')
+				mocapSys.resetRigid('shutter') # MOCAP
 			elif key == 'L':
-				mocapSys.resetRigid('left')
-				#self.resizeFootBox('left')
+				mocapSys.resetRigid('left') # MOCAP
+				self.resizeFootBox('left')
 				
 			elif key == 'R':
-				mocapSys.resetRigid('right')
-				#self.resizeFootBox('right')
+				mocapSys.resetRigid('right') # MOCAP
+				self.resizeFootBox('right') # MOCAP
 					
 			if( viz.key.isDown( viz.KEY_CONTROL_L )):
 				
 				if key == 's':
-					mocapSys.saveRigid('shutter')
+					mocapSys.saveRigid('shutter') # MOCAP
 				elif key == 'l':
-					mocapSys.saveRigid('left')
+					mocapSys.saveRigid('left') # MOCAP
 				elif key == 'r':
-					mocapSys.saveRigid('right')
-			
-		##########################################################
-		##########################################################
-		## Eye-tracker calibration mode
-		
-		if self.inCalibrateMode:
-			if key == 'w':
-				self.config.eyeTrackingCal.updateOffset('w')
-			elif key == 's':
-				self.config.eyeTrackingCal.updateOffset('s')
-			elif key == 'i':
-				self.config.eyeTrackingCal.updateDelta('w')
-			elif key == 'k':
-				self.config.eyeTrackingCal.updateDelta('s')
-			elif key == 'j':
-				self.config.eyeTrackingCal.updateDelta('a')
-			elif key == 'l':
-				self.config.eyeTrackingCal.updateDelta('d')
-	
-	
+					mocapSys.saveRigid('right') # MOCAP
+				
 	def onKeyUp(self,key):
 		
 		if( key == 'v'):
@@ -810,9 +778,11 @@ class Experiment(viz.EventClass):
 
 	def getOutput(self):
 		
-		
 		"""
 		Returns a string describing the current state of the experiment, useful for recording.
+
+		MOCAP - position / orientatoin info gathered from mocap data structures.
+		
 		"""
 		# Fix Me:
 		# When the markers are not visible it should not through Error
@@ -836,113 +806,54 @@ class Experiment(viz.EventClass):
 		## FrameTime, Event Flag, Trial Type 
 		## =======================================================================================================				
 		outputString = 'frameTime %f ' % (viz.getFrameTime())
-		#87
+		outputString = 'sysTime %f ' % (time.clock())
 		
 		outputString = outputString + ' eventFlag %d ' % (self.eventFlag.status)
 		
+		if( self.eventFlag.status == 1):
+			
+			outputString = outputString + ' trialType %s ' % (self.currentTrial.trialType)
+			
+			## =======================================================================================================
+			## Obstacle Height & Location 
+			## =======================================================================================================
+			outputString = outputString + '[ Obstacle_XYZ %f %f %f ] ' % ( self.currentTrial.obsXLoc, self.currentTrial.obsHeightM, self.currentTrial.obsZLoc)
+			outputString = outputString + ' isWalkingDownAxis %d ' % (self.room.isWalkingDownAxis)
+		
 		#FIXME: Collision locatoin is not set correctly in _checkForCollisions
-		#if( self.eventFlag.status == 4 or self.eventFlag.status == 5 ):
-		
-		### (Kamran) Hacked for test
-		###  collisionPosLocal_XYZ = self.currentTrial.collisionPosLocal_XYZ
-		###  outputString = outputString + ' collisionPosLocal_XYZ [ %f %f %f ] ' % (collisionPosLocal_XYZ[0], collisionPosLocal_XYZ[1], collisionPosLocal_XYZ[2])
-		
-		outputString = outputString + ' trialType %s ' % (self.currentTrial.trialType)
-
-		## =======================================================================================================
-		## Obstacle Height & Location 
-		## =======================================================================================================
-		outputString = outputString + '[ Obstacle_XYZ %f %f %f ] ' % ( self.currentTrial.obsXLoc, self.currentTrial.obsHeightM, self.currentTrial.obsZLoc)
-		
-		## =======================================================================================================
-		## ViewPos 
-		## =======================================================================================================				
-		#viewPos_XYZ = viz.MainView.getPosition()
-		#outputString = outputString + '[ viewPos_XYZ %f %f %f ] ' % (viewPos_XYZ[0],viewPos_XYZ[1],viewPos_XYZ[2])
-		
-		MarkerPos = []
-		
-		#FIXME: Hardcoded foot markers numbers for data output.
-
-		self.config.sysCfg['phasespace']['owlParamMarkerCount']
-		
-		for i in range(17):
+		if( self.eventFlag.status == 4 or self.eventFlag.status == 5 ):		
 			
-			markerCondition = self.config.mocap.getMarkerCondition(i)
-			
-			if( markerCondition > 0 ):
-				Pos = self.config.mocap.getMarkerPosition(i);
-				MarkerPos.append(Pos);
-			else:
-				MarkerPos.append([nan, nan, nan]);
+			collisionPosLocal_XYZ = self.currentTrial.collisionPosLocal_XYZ
+			outputString = outputString + ' collisionLocOnObs_XYZ [ %f %f %f ] ' % (collisionPosLocal_XYZ[0], collisionPosLocal_XYZ[1], collisionPosLocal_XYZ[2])
 		
-		outputString = outputString + '< ShutterGlass_XYZ '
-		# TODO: This should be stored in the ShutterGlass Object as .NumberOfMarker
-		for i in range(5):
-			ShutterGlassMarker = MarkerPos[i];
-			outputString = outputString + 'G%d ' %(i)
-			#try:
-			outputString = outputString + '[ %f %f %f ] ' % (ShutterGlassMarker[0], ShutterGlassMarker[1], ShutterGlassMarker[2])		
-			#except:
-			#	a = 1;
-		outputString = outputString + '> '
-		
-		outputString = outputString + '< RightFoot_XYZ '
-		
-		# TODO: This should be stored in the RightFootMarker Object as .NumberOfMarker
-		for i in range(4):
-			
-			RightFootMarker = MarkerPos[i + 5];
-			
-			outputString = outputString + 'R%d ' %(i)
-			try:
-				outputString = outputString + '[ %f %f %f ] ' % (RightFootMarker[0], RightFootMarker[1], RightFootMarker[2])		
-			except:
-				a=1
-		outputString = outputString + '> '
-
-		outputString = outputString + '< LeftFoot_XYZ '
-		# TODO: This should be stored in the LeftFootMarker Object as .NumberOfMarker
-		for i in range(4):
-			LeftFootMarker = MarkerPos[i + 9];
-			outputString = outputString + 'L%d ' %(i)
-			outputString = outputString + '[ %f %f %f ] ' % (LeftFootMarker[0], LeftFootMarker[1], LeftFootMarker[2])	
-
-		outputString = outputString + '> '
-		outputString = outputString + '< Spinal_XYZ '
-		
-		# TODO: This should be stored in the SpinalMarker Object as .NumberOfMarker
-		for i in range(4):
-			SpinalMarker = MarkerPos[i + 13];
-			outputString = outputString + 'S%d ' %(i)
-			outputString = outputString + '[ %f %f %f ] ' % (SpinalMarker[0], SpinalMarker[1], SpinalMarker[2])		
-		outputString = outputString + '> '
-
 		## =======================================================================================================
-		## Left and Right Foot Position & Quaternion
+		## VisNode body positions and quaternions
 		## =======================================================================================================
+		
+		##########
+		# Right foot
+		
 		rightFootPos_XYZ = []
 		rightFootQUAT_XYZW = []
-		leftFootPos_XYZ = []
-		leftFootQUAT_XYZW = []
-
-		# TODO: We can calculate each foot Velocity here. (Instead of doing it later offline)
-		#rightFootVel_XYZ = []
-		#leftFootVel_XYZ = []
 		
 		if( self.room.rightFoot ):
 			
-			rightFootPos_XYZ = self.room.rightFoot.node.getPosition()
+			rightFootPos_XYZ = self.room.rightFoot.node3D.getPosition()
 			rightFootMat = self.room.rightFoot.node3D.getMatrix()
 			rightFootQUAT_XYZW = rightFootMat.getQuat()
 			
 		else:
 			rightFootPos_XYZ = [None, None, None]
 			rightFootQUAT_XYZW = [None, None, None]
-			
-		#outputString = outputString + '[ RightFoot_XYZ %f %f %f ] ' % (rightFootPos_XYZ[0], rightFootPos_XYZ[1], rightFootPos_XYZ[2])		
-		outputString = outputString + '[ RightFootQUAT_XYZW %f %f %f %f ] ' % ( rightFootQUAT_XYZW[0], rightFootQUAT_XYZW[1], rightFootQUAT_XYZW[2], rightFootQUAT_XYZW[3] )
-
+		
+		outputString = outputString + '[ rFoot_XYZ %f %f %f ] ' % (rightFootPos_XYZ[0], rightFootPos_XYZ[1], rightFootPos_XYZ[2])
+		outputString = outputString + '[ rFootQUAT_XYZW %f %f %f %f ] ' % ( rightFootQUAT_XYZW[0], rightFootQUAT_XYZW[1], rightFootQUAT_XYZW[2], rightFootQUAT_XYZW[3] )
+		
+		##########
+		# Left foot
+		leftFootPos_XYZ = []
+		leftFootQUAT_XYZW = []
+		
 		if( self.room.leftFoot ):
 			
 			leftFootPos_XYZ = self.room.leftFoot.node3D.getPosition()
@@ -953,10 +864,128 @@ class Experiment(viz.EventClass):
 			leftFootPos_XYZ = [None, None, None]
 			leftFootQUAT_XYZW = [None, None, None]
 			
-		#outputString = outputString + '[ LeftFoot_XYZ %f %f %f ] ' % (leftFootPos_XYZ[0], leftFootPos_XYZ[1], leftFootPos_XYZ[2])
+		outputString = outputString + '[ lFoot_XYZ %f %f %f ] ' % (leftFootPos_XYZ[0], leftFootPos_XYZ[1], leftFootPos_XYZ[2])
+		outputString = outputString + '[ lFootQUAT_XYZW %f %f %f %f ] ' % ( leftFootQUAT_XYZW[0], leftFootQUAT_XYZW[1], leftFootQUAT_XYZW[2], leftFootQUAT_XYZW[3] )
 		
-		outputString = outputString + '[ LeftFootQUAT_XYZW %f %f %f %f ] ' % ( leftFootQUAT_XYZW[0], leftFootQUAT_XYZW[1], leftFootQUAT_XYZW[2], leftFootQUAT_XYZW[3] )
-		outputString = outputString + ' WalkingDirection %d ' % (self.room.isWalkingUpAxis)
+		##########
+		# Glasses 
+		
+		glassesPos_XYZ = []
+		glassesQUAT_XYZW = []
+		
+		if( self.room.leftFoot ):
+			
+			glassesPos_XYZ = self.room.leftFoot.node3D.getPosition()
+			glasses = self.room.leftFoot.node3D.getMatrix()
+			glassesQUAT_XYZW = glasses.getQuat()
+			
+		else:
+			glassesPos_XYZ = [None, None, None]
+			glassesQUAT_XYZW = [None, None, None]
+			
+		outputString = outputString + '[ glasses_XYZ %f %f %f ] ' % (leftFootPos_XYZ[0], leftFootPos_XYZ[1], leftFootPos_XYZ[2])
+		outputString = outputString + '[ glassesQUAT_XYZW %f %f %f %f ] ' % ( leftFootQUAT_XYZW[0], leftFootQUAT_XYZW[1], leftFootQUAT_XYZW[2], leftFootQUAT_XYZW[3] )
+		
+		##########
+		# Mainview
+		
+		viewPos_XYZ = viz.MainView.getPosition()
+		outputString = outputString + '[ viewPos_XYZ %f %f %f ] ' % (viewPos_XYZ[0],viewPos_XYZ[1],viewPos_XYZ[2])
+
+		viewQUAT_XYZW = viz.MainView.getMatrix()
+		outputString = outputString + '[ viewQUAT_XYZW %f %f %f %f ] ' % ( viewQUAT_XYZW[0], viewQUAT_XYZW[1], viewQUAT_XYZW[2], viewQUAT_XYZW[3] )
+		
+		## =======================================================================================================
+		## Buffered rigid body data: positions and quaternions
+		## =======================================================================================================
+		# I buffer my data in the mocapInterface
+		# Here, I have 2 functions for getting buffered data and writing it out to text
+		
+		timeElapsed = viz.getFrameElapsed()
+		
+		def getRbMarkerBuffData(rbFilename,rigidVarName,timeElapsed):
+		# rigid body marker data
+			
+			mPositionOutString = ''
+			
+			mocap = self.config.mocap
+			rb = mocap.returnPointerToRigid(rbFilename)
+
+			markerID_mIdx = rb.marker_ids
+			
+			for mID in markerID_mIdx:
+				
+				# Returns a list of tuples of the form (time,ListOfMarkerXYZ)
+				#markerPosBuffer_sIdx_XYZ = [mocap.getMarkerPosition(mID,timeElapsed) for mID in markerID_mIdx]
+				markerPosBuffer_sIdx_XYZ = mocap.getMarkerPosition(mID,timeElapsed)
+				
+				# Output is of format << varName-M0_xyz NumEntries [timeStamp x1 y1 z1 ] [timeStamp x2 y2 z2 ] [timeStamp x3 y3 z3 ] >>
+				# ... for marker ID 0
+				
+				# Write the line header
+				# e.g. '<< rigidVarName-M0_xyz 3 '
+				mPositionOutString = mPositionOutString + '<< ' + rigidVarName + '-M' + str(mID) +'_XYZ ' + str(len(markerPosBuffer_sIdx_XYZ)) + ' '
+				
+				# Iterate through samples (sIdx) and get data
+				for m in markerPosBuffer_sIdx_XYZ:
+					
+					timeStamp = m[0]
+					pos_XYZ = m[1]
+					
+					mPositionOutString = mPositionOutString + '[ %f %f %f %f ] ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
+					
+				mPositionOutString = mPositionOutString  + '>> '
+			
+			return mPositionOutString
+			
+		def getRbBuffData(rbFilename,rigidVarName,timeElapsed):
+		# rigid body position and quaternion (rotation) data
+		
+			tformBuffer_sIdx = self.config.mocap.getRigidTransform(rbFilename,timeElapsed)
+			
+			# Output is of format << Varname NumEntries [A B C] >>
+			# eg << glassesRb_quatXYZW 3 [timeStamp x1 y1 z1 w1] [timeStamp x2 y2 z2 w2] [timeStamp x3 y3 z3 w3] >>
+			
+			tformOutString = '<< ' + rigidVarName + '_quatXYZW ' + str(len(tformBuffer_sIdx)) + ' '
+			posOutString = '<< ' + rigidVarName + '_posXYZ ' + str(len(tformBuffer_sIdx)) + ' '
+			
+			# Build two seperate strings 
+			for m in tformBuffer_sIdx:
+			
+				timeStamp = m[0]
+				quat_XYZW = m[1].getQuat()
+				
+				tformOutString = tformOutString  + '[ %f %f %f %f %f ] ' % (timeStamp, quat_XYZW[0], quat_XYZW[1], quat_XYZW[2], quat_XYZW[3])
+				
+				pos_XYZ = m[1].getPosition()
+				posOutString = posOutString  + '[ %f %f %f %f ] ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
+			
+			tformOutString = tformOutString  + '>> '
+			posOutString = posOutString  + '>> '
+			
+			return tformOutString + posOutString
+		
+		################################################################################################
+		## Record rigid body pos / quat, and marker on rigid pos 
+		################################################################################################
+		
+		if( self.eventFlag.status == 6 or self.eventFlag.status == 7 ):
+			
+			trialDuration = time.clock() - self.currentTrial.startTime
+			
+			print 'TRIAL DURATION: ' + str(trialDuration)
+			outputString = outputString + getRbBuffData('shutter','glassesRb',trialDuration )
+			outputString = outputString + getRbMarkerBuffData('shutter','glassesRb',trialDuration )
+			
+			outputString = outputString + getRbBuffData('left','lFootRB',timeElapsed)
+			outputString = outputString + getRbMarkerBuffData('left','lFootRb',timeElapsed)
+			
+			outputString = outputString + getRbBuffData('right','rFootRb',timeElapsed)
+			outputString = outputString + getRbMarkerBuffData('right','rFoorRb',timeElapsed)
+			
+			#### Fixme: spine!
+			##outputString = outputString + getRbBuffData('spine','glassesRB',timeElapsed)
+			##outputString = outputString + getRbMarkerBuffData('spine','spineRb',timeElapsed)
 		
 		return outputString #%f %d' % (viz.getFrameTime(), self.inCalibrateMode)
 		
@@ -1002,12 +1031,17 @@ class Experiment(viz.EventClass):
 
 	def endTrial(self):
 		
+		self.eventFlag.setStatus(6,True)
+		
 		endOfTrialList = len(self.blocks_bl[self.blockNumber].trials_tr)
 		
 		self.toggleWalkingDirection();	
-		self.currentTrial.approachingObs = False
+		
+		#self.currentTrial.approachingObs = False
+		
 		#print 'Ending block: ' + str(self.blockNumber) + 'trial: ' + str(self.trialNumber)
 		
+		# If it is the last trial...
 		if( self.trialNumber < endOfTrialList ):
 			
 			recalAfterTrial_idx = self.blocks_bl[self.blockNumber].recalAfterTrial_idx
@@ -1056,14 +1090,22 @@ class Experiment(viz.EventClass):
 				return
 				
 		if( self.expInProgress ):
-				
-			print 'Starting block: ' + str(self.blockNumber) + ' Trial: ' + str(self.trialNumber)
-			self.currentTrial = self.blocks_bl[self.blockNumber].trials_tr[self.trialNumber]
+			
+			vizact.ontimer2(0,0,self.nextTrial)
+
+			return
+			
 			
 	def writeDataToText(self):
-
+		
+		trialIsNotEnding  = 1;
+		
+		if( self.eventFlag.status != 6 or self.eventFlag.status != 7 ):
+			trialIsNotEnding  = 0; # sorry for the double negative!
+			
 		# Only write data if the experiment is ongoing
-		if( (self.currentTrial.approachingObs == False) or (self.expInProgress == False) ):
+		if( 
+			( self.currentTrial.approachingObs == False ) or (self.expInProgress == False) ):
 			return
 	
 		expDataString = self.getOutput()
@@ -1172,12 +1214,13 @@ class Experiment(viz.EventClass):
 		config = self.config
 		print 'Connecting mainview to eyesphere'
 
+		# Flip L/R eye phasing
 		viz.MainWindow.setStereoSwap(viz.TOGGLE)
 		
 		eyeSphere = self.room.eyeSphere
 		eyeSphere.node3D.visible(viz.TOGGLE)
 		
-		shutterRigid = config.mocap.returnPointerToRigid('shutter')
+		shutterRigid = config.mocap.returnPointerToRigid('shutter') # Here, 
 		shutterRigid.link_pose(eyeSphere.node3D)
 				
 		self.config.virtualPlane.attachViewToGlasses(eyeSphere.node3D,shutterRigid)
@@ -1234,8 +1277,8 @@ class Experiment(viz.EventClass):
 	
 		footRigid = mocap.returnPointerToRigid(footSide)
 	
-		# MOCAP: Positions of markers on rigid body in world coordinates
-		markerDict = footRigid.get_markers()
+		# Get positions of markers on rigid body in world coordinates
+		markerDict = footRigid.get_markers() # MOCAP
 		
 		# Get marker positions
 		markerPosViz_mIdx_XYZ = [markerDict[mKey].pos for mKey in markerDict.keys()]
@@ -1249,10 +1292,8 @@ class Experiment(viz.EventClass):
 			return
 		
 		# Set length and width
-		#footWidth = max(markerXVals_mIdx) - min(markerXVals_mIdx)
-		#footLength = (max(markerZVals_mIdx) - min(markerZVals_mIdx))
-		footLength = max(markerXVals_mIdx) - min(markerXVals_mIdx)
-		footWidth = (max(markerZVals_mIdx) - min(markerZVals_mIdx))
+		footWidth = max(markerXVals_mIdx) - min(markerXVals_mIdx)
+		footLength = (max(markerZVals_mIdx) - min(markerZVals_mIdx))
 		
 		# Take average height of center markers
 		sumOfMarkerHeights = 0
@@ -1273,6 +1314,9 @@ class Experiment(viz.EventClass):
 		footObj.size = footLWH
 		
 		print 'Making basic node3D of size ' + str(footLWH)
+
+		#### Redraw rigid bodies with new dimensions
+		
 		# Erase vis and phys component of foot 
 		footObj.removePhysNode()
 		footObj.node3D.remove()
@@ -1282,7 +1326,12 @@ class Experiment(viz.EventClass):
 		
 		# ...mow, link to rigid bodies and turn on physNodes
 		self.setupFeet()
-			
+	
+	def nextTrial(self):
+	
+		print 'Starting block: ' + str(self.blockNumber) + ' Trial: ' + str(self.trialNumber)
+		self.currentTrial = self.blocks_bl[self.blockNumber].trials_tr[self.trialNumber]
+		
 class eventFlag(viz.EventClass):
 	
 	def __init__(self):
@@ -1394,6 +1443,8 @@ class block():
 		
 class trial(viz.EventClass):
 	def __init__(self,config=None,trialType='t1', room = None):
+		
+		self.startTime = []
 		
 		#viz.EventClass.__init__(self)
 		self.config = config

@@ -53,7 +53,8 @@ class obstacleObj():
 			
 			# DepthWidthHeight
 			self.collisionBox = visEnv.visObj(self.parentRoom,'box',[radius,obsWidth,self.collisionBoxSize])		
-
+			#self.collisionBox.disable(viz.RENDERING)
+			
 			self.collisionBox.enablePhysNode()
 			self.collisionBox.physNode.isLinked = 1;
 			self.collisionBox.linkPhysToVis()

@@ -139,8 +139,6 @@ class RigidTracker(PointTracker):
     #def __init__(self, index, center_marker_ids, localOffest_xyz):
     def __init__(self, index, marker_ids, center_marker_ids, localOffest_xyz):
         super(RigidTracker, self).__init__(index, marker_ids)
-
-        self.markerID_midx = []
         
         self.center_marker_ids = center_marker_ids
         
@@ -178,8 +176,7 @@ class RigidTracker(PointTracker):
             count += 1;
             
         #rof
-            
-        self.markerID_midx = markerID
+
         
         openfile.close()
         
@@ -409,8 +406,8 @@ class RigidTracker(PointTracker):
 class trackerBuffer(viz.EventClass):
     def __init__(self):
         
-        # Approx a one second buffer
-        self.bufferLength = OWL.OWL_MAX_FREQUENCY
+        # Approx a ten second buffer
+        self.bufferLength = OWL.OWL_MAX_FREQUENCY * 10
         
         self.buffer_sIdx = collections.deque(maxlen=self.bufferLength) # a FIFO deque of tuples (time,[marker tracker list])
 
@@ -442,19 +439,20 @@ class trackerBuffer(viz.EventClass):
         ------
         A list of tuples of form (time,listOfTrackers)
         '''
+        with self._lock:
+            
+            currentTime = time.clock()
+            #currentTime =  OWL.owlGetIntegerv(OWL.OWL_TIMESTAMP)
         
-        currentTime = time.clock()
-        #currentTime =  OWL.owlGetIntegerv(OWL.OWL_TIMESTAMP)
         
-        with self._lock:            
             timeSinceSample_fr = [currentTime - m[1] for m in self.buffer_sIdx ]
         
-        # find the first index smaller than bufferDurationS
-        firstIndex = next(idx for idx, timePast in enumerate(timeSinceSample_fr) if timePast <= lookBackDurationS ) 
+            # find the first index smaller than bufferDurationS
+            firstIndex = next(idx for idx, timePast in enumerate(timeSinceSample_fr) if timePast <= lookBackDurationS ) 
 
-        # return new values
-        # Note that you can't slice into deque without using isslice()        
-        return collections.deque(itertools.islice(self.buffer_sIdx, firstIndex, len(self.buffer_sIdx)))
+            # return new values
+            # Note that you can't slice into deque without using isslice()        
+            return collections.deque(itertools.islice(self.buffer_sIdx, firstIndex, len(self.buffer_sIdx)))
         
     def getMarkerPosition(self,markerID,lookBackDurationS):
         '''
