@@ -30,6 +30,7 @@ class virtualPlane():
 	Initializes the Environment. Requires .cave file that contains the four corners of the powerwall.
 	Also accepts the debug flag for future use.
 	"""
+	
 	def __init__(self, config=None, planeName = 'floor', isAFloor = 1, caveCornersFileName = None):
 		
 		self.config = config

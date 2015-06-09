@@ -404,11 +404,9 @@ class RigidTracker(PointTracker):
         OWL.owlTracker(self._index, OWL.OWL_ENABLE)
 
 class trackerBuffer(viz.EventClass):
-    def __init__(self):
+    def __init__(self,durationSecs = 10):
         
-        # Approx a ten second buffer
-        self.bufferLength = OWL.OWL_MAX_FREQUENCY * 10
-        
+        self.bufferLength = durationSecs * OWL.owlGetFloatv(OWL.OWL_FREQUENCY)[0]
         self.buffer_sIdx = collections.deque(maxlen=self.bufferLength) # a FIFO deque of tuples (time,[marker tracker list])
 
         self._lock = threading.Lock()
@@ -534,35 +532,6 @@ class trackerBuffer(viz.EventClass):
         
         return tformBuffer_sIdx
         
-#    def getRigidQuat(self,rigidIdx,lookBackDurationS):
-#        '''
-#        returns a list of rigid body quaternions
-#        '''
-#        
-#        # Get a list of tuples: (time,pose)
-#        # Pose is in vizard format
-#        poseBuffer_sIdx = self.getRigidPose(rigidIdx,lookBackDurationS)
-#        
-#        quatBuffer_sIdx = []
-#        
-#        for sIdx, pose in enumerate(poseBuffer_sIdx):
-#            quatBuffer_sIdx.append( (poseBuffer_sIdx[sIdx][0], poseBuffer_sIdx[sIdx][1].quat) )
-#        
-#        return quatBuffer_sIdx
-#        
-#    def getRigidPosition(self,rigidIdx,lookBackDurationS):
-#        
-#        # Get a list of tuples: (time,pose)
-#        # Pose is in vizard format
-#        poseBuffer_sIdx = self.getRigidPose(rigidIdx,lookBackDurationS)
-#        
-#        positionBuffer_sIdx = []
-#        
-#        for sIdx, pose in enumerate(poseBuffer_sIdx):
-#            positionBuffer_sIdx.append( (poseBuffer_sIdx[sIdx][0], poseBuffer_sIdx[sIdx][1].pos) )
-#        
-#        return positionBuffer_sIdx
-        
 class phasespaceInterface(viz.EventClass):
     '''Handle the details of getting mocap data from phasespace.
 
@@ -589,7 +558,7 @@ class phasespaceInterface(viz.EventClass):
         
         super(phasespaceInterface, self).__init__()
     
-        self.markerTrackerBuffer = trackerBuffer()
+        
         #self.trackPosBuff_sIdx_mIdx_XYZ = collections.deque(maxlen=200) # a deque of tuples (time,[marker tracker list])
         
         
@@ -660,6 +629,8 @@ class phasespaceInterface(viz.EventClass):
         OWL.owlSetInteger(OWL.OWL_STREAMING, OWL.OWL_ENABLE)
         OWL.owlSetInteger(OWL.OWL_INTERPOLATION, self.owlParamInterp)
         OWL.owlSetInteger(OWL.OWL_TIMESTAMP, OWL.OWL_ENABLE)
+        
+        self.markerTrackerBuffer = trackerBuffer()
         
         self.trackers = []
         
@@ -1049,7 +1020,10 @@ class phasespaceInterface(viz.EventClass):
             rigidBody.save()
         else: print 'Error: Rigid body not initialized'
     
-        
+    def setBufferLength(self,durationSecs):
+
+        self.markerTrackerBuffer =  trackerBuffer(durationSecs)
+
         #self.toggleUpdateWithMarker()
 
 #    def showMarkers(self):

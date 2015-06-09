@@ -17,7 +17,9 @@ class obstacleObj():
 		
 		self.parentRoom = room
 		
-		self.crossBarHeight = crossBarHeight
+		crossBarRadius = 0.01
+		
+		self.crossBarHeight = crossBarHeight-crossBarRadius
 		self.obsPosition = obsPosition
 				
 		self.bottomMainPipe= vizshape.addCylinder( obsWidth, radius, axis = vizshape.AXIS_X, bottom = True, top = True, color = viz.WHITE)
@@ -53,7 +55,7 @@ class obstacleObj():
 			
 			# DepthWidthHeight
 			self.collisionBox = visEnv.visObj(self.parentRoom,'box',[radius,obsWidth,self.collisionBoxSize])		
-			#self.collisionBox.disable(viz.RENDERING)
+			self.collisionBox.node3D.disable(viz.RENDERING)
 			
 			self.collisionBox.enablePhysNode()
 			self.collisionBox.physNode.isLinked = 1;
@@ -67,58 +69,6 @@ class obstacleObj():
 			#self.collisionBox.physNode.body.setPosition(self.collisionBox.node3D.getPosition(viz.ABS_GLOBAL))
 		
 		setCollisionBox()
-		
-#			
-#			# Viz is now linked to the rest of the obstacle
-#			#self.collisionBoxLink = viz.link(self.bottomMainPipe,self.collisionBox.node3D)
-#			
-#			boxYPosition = -self.collisionBoxSize/2 + self.crossBarHeight
-#			
-#			self.collisionBoxLink.setOffset([0,boxYPosition,0])
-#			self.collisionBox.node3D.setPosition([0, boxYPosition, 0],viz.ABS_PARENT)
-#		
-
-		## I cheat, because it is difficult to resize a viznode after making it
-		## I set the collision box to be very tall, but set the position (not size) so that the top 
-		## ends at the crossbar. 
-		
-		#		self.collisionBoxSize = 3.0
-#		
-#		# DWH
-#		self.collisionBox = visEnv.visObj(self.parentRoom,'box',[radius,obsWidth,self.collisionBoxSize])		
-#		
-#		self.collisionBox.enablePhysNode()
-#
-#		# Phys now follows viz
-#		self.collisionBox.linkPhysToVis()
-#		
-#		# Viz is now linked to the rest of the obstacle
-#		self.collisionBoxLink = viz.link(self.bottomMainPipe,self.collisionBox.node3D)
-#		
-#		boxYPosition = -self.collisionBoxSize/2 + self.crossBarHeight
-#		
-#		self.collisionBoxLink.setOffset([0,boxYPosition,0])
-#		self.collisionBox.node3D.setPosition([0, boxYPosition, 0],viz.ABS_PARENT)
-#		
-#		self.collisionBoxSize = 3.0
-#		
-#		# DWH
-#		self.collisionBox = visEnv.visObj(self.parentRoom,'box',[radius,obsWidth,self.collisionBoxSize])		
-#		
-#		self.collisionBox.enablePhysNode()
-#
-#		# Phys now follows viz
-#		self.collisionBox.linkPhysToVis()
-#		
-#		# Viz is now linked to the rest of the obstacle
-#		self.collisionBoxLink = viz.link(self.bottomMainPipe,self.collisionBox.node3D)
-#		
-#		boxYPosition = -self.collisionBoxSize/2 + self.crossBarHeight
-#		
-#		self.collisionBoxLink.setOffset([0,boxYPosition,0])
-#		self.collisionBox.node3D.setPosition([0, boxYPosition, 0],viz.ABS_PARENT)
-#		
-		#self.collisionBox.node3D.visible(viz.OFF)
 		
 		self.node3D = viz.addGroup()
 		self.bottomMainPipe.setParent(self.node3D)

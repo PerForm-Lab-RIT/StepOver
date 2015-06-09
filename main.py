@@ -420,7 +420,6 @@ class Experiment(viz.EventClass):
 		## Use config to setup hardware, motion tracking, frustum, eyeTrackingCal.
 		##  This draws upon the system config to setup the hardware / HMD
 		
-		#self.config = config
 		config = Configuration(expConfigFileName)
 		self.config = config
 		
@@ -469,12 +468,14 @@ class Experiment(viz.EventClass):
 		
 		self.currentTrial = self.blocks_bl[self.blockNumber].trials_tr[self.trialNumber]
 		
-#		################################################################
-#		################################################################
-#		##  Misc. Design specific items here.
+		################################################################
+		################################################################
+		##  Misc. Design specific items here.
+		
 		self.maxTrialDuration = config.expCfg['experiment']['maxTrialDuration']
-		# Initially, set to config value of leg length
-		config.legLengthCM = config.expCfg['experiment']['legLengthCM']
+		
+		# MOCAP: Set buffer length equal to 1.5x experiment trial duration
+		self.config.mocap.setBufferLength(self.maxTrialDuration)
 		
 		if( config.wiimote ):
 			self.registerWiimoteActions()
@@ -1150,18 +1151,18 @@ class Experiment(viz.EventClass):
 			self.currentTrial.metronomeTimerObj.remove()
 
 		viz.playSound(soundBank.beep)
+		
 		# Change the Obstacle Color to Green as a visual feedback for the subject
-		self.currentTrial.obsObj.setColor(viz.WHITE)
-		
-		#self.currentTrial.metronomeTimerObj = vizact.ontimer(self.metronomeTimeMS/1000,self.metronomeHighTic)
-		
+		if( self.currentTrial.objIsVirtual):
+			self.currentTrial.obsObj.setColor(viz.WHITE)
+				
 	def inputLegLength(self):
+		
 		#print('SETTING LEG LENGTH TO 100!')
 		#self.config.obsHeightLegRatio = 100
 
-		#prompt for a string
-		#self.config.obsHeightLegRatio 
-		self.config.legLengthCM = vizinput.input('Enter leg length (cm):', value = float(90))
+		#prompt for an integer value of leg length in CM
+		self.config.legLengthCM = float(vizinput.input('Enter leg length (cm):', value = float(90)))
 		
 		try:
 			# Test if it's an integer
@@ -1171,6 +1172,10 @@ class Experiment(viz.EventClass):
 			self.inputLegLength()
 	
 	def isVisObjInBox(self,visObj):
+		'''
+		Check to see if the visObj is currently inside the standing box
+		This fun is run on every frame for both feet prior before the go signal is given
+		'''
 		
 		objPos_xyz = visObj.node3D.getPosition()
 		
@@ -1532,8 +1537,8 @@ class trial(viz.EventClass):
 		
 			
 	def placeObs(self,room):
+			
 		#experimentObject.currentTrial.obsObj.collisionBox.physNode.body.getPosition()
-		
 		#print 'Creating object at ' + str(obsLoc)
 		
 		self.obsHeightM = self.config.legLengthCM * self.obsHeightLegRatio / 100
@@ -1548,24 +1553,25 @@ class trial(viz.EventClass):
 			
 		
 		self.obsLoc_XYZ = [self.room.standingBoxOffset_X,0,self.obsZPos]
-		
-		import obstacleClass
-		#self.obsObj = visEnv.visObj(room,'box',obsSize,obsLoc,self.obsColor_RGB)
-		#self.obsObj.enablePhysNode()
-		
+				
 		if( self.objIsVirtual == False ):
-
-			self.obsObj = visEnv.visObj(room,'box',obsSize,self.obsLoc_XYZ,self.obsColor_RGB)
 			
-			#self.obsObj.node3D.disable(viz.RENDERING)
+			
+			# I place a virtual obstacle but dont render it
+			# This allows for collision detection
+			# also, the same analysis can be applied to real-world and virtual trials
+			self.obsObj = obstacleObj(room,self.obsHeightM,self.obsLoc_XYZ)			
+			self.obsObj.node3D.disable(viz.RENDERING)
+			
+			#experimentObject.currentTrial.obsObj.crossBarHeight
 			
 			# Draw a line on the ground
 			lineHeight = 0.001
 			lineSize = [0.015,5.0,lineHeight] # lwh
 			
-			obsLoc = [self.room.standingBoxOffset_X,lineHeight/2,self.obsZPos]
+			lineLoc = [self.room.standingBoxOffset_X,lineHeight/2,self.obsZPos]
 
-			self.lineObj = visEnv.visObj(room,'box',lineSize,obsLoc,self.obsColor_RGB)
+			self.lineObj = visEnv.visObj(room,'box',lineSize,lineLoc,self.obsColor_RGB)
 			
 			if( self.trialType == 't4' ):
 				displayText = 'Short'
@@ -1590,8 +1596,9 @@ class trial(viz.EventClass):
 		else:
 			
 			self.obsObj = obstacleObj(room,self.obsHeightM,self.obsLoc_XYZ)
+			self.obsObj.node3D.color(viz.RED)
 			print'Placing Obstacle at', self.obsLoc_XYZ, 'height', self.obsHeightM
-
+	
 		
 	def removeObs(self):
 
@@ -1670,6 +1677,6 @@ def checkObs():
 	print experimentObject.currentTrial.obsObj.collisionBox.node3D.getPosition(viz.ABS_GLOBAL)
 	print experimentObject.currentTrial.obsObj.collisionBox.physNode.body.getPosition()
 
-vizshape.addAxes().setScale([0.5, 0.5, 0.5])
+#vizshape.addAxes().setScale([0.5, 0.5, 0.5])
 
 #vizshape.addBox(size=(0.05,0.05,0.05))

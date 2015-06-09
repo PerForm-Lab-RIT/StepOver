@@ -276,6 +276,8 @@ class visObj(viz.EventClass):
         ## Create visual object
         
         self.makeBasicVizShape()
+        self.node3D.setPosition(position)
+        
         #self.node3D.color(self.color_3f)
         self.setColor(self.color_3f)
         self.node3D.visible(True)
