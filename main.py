@@ -617,7 +617,8 @@ class Experiment(viz.EventClass):
 					
 					if( type(self.currentTrial.goSignalTimerObj) is not list ):			
 						self.currentTrial.goSignalTimerObj.remove()
-	
+						
+					
 					vizact.ontimer2(self.maxTrialDuration, 0,self.endTrial)
 					
 										
@@ -628,7 +629,10 @@ class Experiment(viz.EventClass):
 		
 		thePhysEnv = self.room.physEnv;
 		
-		if( ( thePhysEnv.collisionDetected == False ) or ( self.expInProgress == False ) ): 
+		if( self.eventFlag.status == 6 or # A bit of messy schedulign.  Trial ending, so collision box does not exist.
+			self.eventFlag.status == 7 or
+			thePhysEnv.collisionDetected == False or 
+			self.expInProgress == False ): 
 			# No collisions this time!
 			return
 		
@@ -636,9 +640,9 @@ class Experiment(viz.EventClass):
 		rightFoot = self.room.rightFoot
 		
 		if( self.currentTrial.approachingObs == True ):
-			
 			obstacle = self.currentTrial.obsObj.collisionBox
-			
+				
+				
 			for idx in range(len(thePhysEnv.collisionList_idx_physNodes)):
 				
 				physNode1 = thePhysEnv.collisionList_idx_physNodes[idx][0]
@@ -1663,6 +1667,7 @@ lf = experimentObject.room.leftFoot
 lr = experimentObject.config.mocap.returnPointerToRigid('left')
 
 lf.node3D.getPosition()
+
 lr.get_position()
 
 #demoMode(experimentObject)
