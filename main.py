@@ -462,9 +462,10 @@ class Experiment(viz.EventClass):
 		
 		self.room.offsetDistance = float(config.expCfg['room']['minObstacleDistance'])
 		
-		print'====> Obstacle Distance = ', self.room.offsetDistance
+		#print'====> Obstacle Distance = ', self.room.offsetDistance
 		for bIdx in range(len(config.expCfg['experiment']['blockList'])):
 			self.blocks_bl.append(block(config,bIdx, self.room));
+		
 		
 		self.currentTrial = self.blocks_bl[self.blockNumber].trials_tr[self.trialNumber]
 		
@@ -500,7 +501,6 @@ class Experiment(viz.EventClass):
 		##############################################################
 		## Callbacks and timers
 		
-		# Hacked (Kamran)
 		vizact.onupdate(viz.PRIORITY_PHYSICS,self._checkForCollisions)
 		
 		self.callback(viz.KEYDOWN_EVENT,  self.onKeyDown)
@@ -523,15 +523,27 @@ class Experiment(viz.EventClass):
 		dataOutPutDir = config.sysCfg['writer']['outFileDir']
 		
 		self.expDataFile = open(dataOutPutDir + 'exp_data-' + dateTimeStr + '.txt','w+')
-		self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE, self.writeDataToText)
-
+		self.writer = dataWriter(self.expDataFile)
+		
+		self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE,self.writeDataToText)
+		
+		#self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE, self.writeDataToText)
+		
+		
+		# Write out experiment metadata
+		expMetaDataStr = ''
+		expMetaDataStr = self.getExperimentMetaData()
+		self.expDataFile.write(expMetaDataStr + '\n')
+		
 		# Create an event flag object
 		# This var is set to an int on every frame
 		# The int saves a record of what was happening on that frame
 		# It can be configured to signify the start of a trial, the bounce of a ball, or whatever
 		
 		self.eventFlag = eventFlag()
-
+		
+		
+		
 	def _timerCallback(self,timerID):
 
 		mainViewPos_XYZ = viz.MainView.getPosition()
@@ -754,11 +766,9 @@ class Experiment(viz.EventClass):
 			self.config.eyeTrackingCal.updateOffset('w')
 		
 		if (self.inCalibrateMode is False):
-			if key == 'D':
-				
-				dvrWriter = self.config.wRRriter;
-				dvrWriter.toggleOnOff()
-							
+
+			if key == 'P':
+				mocapSys.resetRigid('spine') # MOCAP
 			elif key == 'S':
 				mocapSys.resetRigid('shutter') # MOCAP
 			elif key == 'L':
@@ -768,10 +778,15 @@ class Experiment(viz.EventClass):
 			elif key == 'R':
 				mocapSys.resetRigid('right') # MOCAP
 				self.resizeFootBox('right') # MOCAP
-					
+			
+			
+				
+				
 			if( viz.key.isDown( viz.KEY_CONTROL_L )):
 				
-				if key == 's':
+				if key == 'p':
+					mocapSys.saveRigid('spine') # MOCAP
+				elif key == 's':
 					mocapSys.saveRigid('shutter') # MOCAP
 				elif key == 'l':
 					mocapSys.saveRigid('left') # MOCAP
@@ -785,6 +800,38 @@ class Experiment(viz.EventClass):
 			
 			#self.launchKeyUp()
 
+	def getExperimentMetaData(self):
+		
+		config = self.config
+		outputString = '';
+		
+		outputString = outputString  + 'legLengthCM %f ' % (config.legLengthCM)
+		
+		outputString = outputString  + 'maxTrialDuration %f ' % (self.config.expCfg['experiment']['maxTrialDuration'])
+	
+		## Numblocks and block list
+		numBlocks = len(config.expCfg['experiment']['blockList']);
+		outputString = outputString  + 'numBlocks %f ' % (numBlocks)
+				
+	
+#		outputString = outputString + '[ blockTypeList '
+#		for bIdx in range(numBlocks):
+#			outputString = outputString + '%' % config.expCfg['experiment']['blockList'][bIdx]
+#		outputString = outputString + ' ] '
+
+
+	
+		#outputString = outputString + '[ Obstacle_XYZ %f %f %f ] ' % (self.currentTrial.obsLoc_XYZ[0],self.currentTrial.obsLoc_XYZ[1],self.currentTrial.obsLoc_XYZ[2])
+		
+		outputString = outputString  + 'mocapRefresh %f ' % (config.mocap.owlParamFrequ)
+		outputString = outputString  + 'mocapInterp %f ' % (config.mocap.owlParamInterp)
+		outputString = outputString  + 'mocapPostProcess %f ' % (config.mocap.owlParamPostProcess)
+		
+		
+		
+		
+		return outputString 
+		
 	def getOutput(self):
 		
 		"""
@@ -814,10 +861,12 @@ class Experiment(viz.EventClass):
 		## =======================================================================================================
 		## FrameTime, Event Flag, Trial Type 
 		## =======================================================================================================				
-		outputString = 'frameTime %f ' % (viz.getFrameTime())
-		outputString = 'sysTime %f ' % (time.clock())
+		outputString = '';
+		outputString = outputString + 'frameTime %f ' % (viz.getFrameTime())
+		outputString = outputString + 'sysTime %f ' % (time.clock())
 		
 		outputString = outputString + ' eventFlag %d ' % (self.eventFlag.status)
+			
 		
 		if( self.eventFlag.status == 1 ):
 			
@@ -826,9 +875,10 @@ class Experiment(viz.EventClass):
 			## =======================================================================================================
 			## Obstacle Height & Location 
 			## =======================================================================================================
-			outputString = outputString + '[ Obstacle_XYZ %f %f %f ] ' % (self.currentTrial.obsLoc_XYZ[0],self.currentTrial.obsLoc_XYZ[1],self.currentTrial.obsLoc_XYZ[2])
-			outputString = outputString + ' obstacleHeight %d ' % (self.currentTrial.obsHeightM)
+			outputString = outputString + '[ obstacle_XYZ %f %f %f ] ' % (self.currentTrial.obsLoc_XYZ[0],self.currentTrial.obsLoc_XYZ[1],self.currentTrial.obsLoc_XYZ[2])
+			outputString = outputString + ' obstacleHeight %f ' % (self.currentTrial.obsHeightM)
 			outputString = outputString + ' isWalkingDownAxis %d ' % (self.room.isWalkingDownAxis)
+			outputString = outputString + ' trialNum %d ' % (self.trialNumber)
 		
 		if( self.eventFlag.status == 4 or self.eventFlag.status == 5 ):		
 
@@ -910,8 +960,6 @@ class Experiment(viz.EventClass):
 		# I buffer my data in the mocapInterface
 		# Here, I have 2 functions for getting buffered data and writing it out to text
 		
-		timeElapsed = viz.getFrameElapsed()
-		
 		def getRbMarkerBuffData(rbFilename,rigidVarName,timeElapsed):
 		# rigid body marker data
 			
@@ -983,18 +1031,17 @@ class Experiment(viz.EventClass):
 			trialDuration = time.clock() - self.currentTrial.startTime
 			
 			print 'TRIAL DURATION: ' + str(trialDuration)
-			outputString = outputString + getRbBuffData('shutter','glassesRb',trialDuration )
-			outputString = outputString + getRbMarkerBuffData('shutter','glassesRb',trialDuration )
+			outputString = outputString + getRbBuffData('shutter','glassRb',trialDuration )
+			outputString = outputString + getRbMarkerBuffData('shutter','glassRb',trialDuration )
 			
-			outputString = outputString + getRbBuffData('left','lFootRB',timeElapsed)
-			outputString = outputString + getRbMarkerBuffData('left','lFootRb',timeElapsed)
+			outputString = outputString + getRbBuffData('left','lFootRb',trialDuration)
+			outputString = outputString + getRbMarkerBuffData('left','lFootRb',trialDuration)
 			
-			outputString = outputString + getRbBuffData('right','rFootRb',timeElapsed)
-			outputString = outputString + getRbMarkerBuffData('right','rFoorRb',timeElapsed)
+			outputString = outputString + getRbBuffData('right','rFootRb',trialDuration)
+			outputString = outputString + getRbMarkerBuffData('right','rFoorRb',trialDuration)
 			
-			#### Fixme: spine!
-			##outputString = outputString + getRbBuffData('spine','glassesRB',timeElapsed)
-			##outputString = outputString + getRbMarkerBuffData('spine','spineRb',timeElapsed)
+			outputString = outputString + getRbBuffData('spine','spineRb',trialDuration)
+			outputString = outputString + getRbMarkerBuffData('spine','spineRb',trialDuration)
 		
 		return outputString #%f %d' % (viz.getFrameTime(), self.inCalibrateMode)
 		
@@ -1090,19 +1137,21 @@ class Experiment(viz.EventClass):
 			
 	def writeDataToText(self):
 		
-		trialIsNotEnding  = 1;
+#		trialIsNotEnding  = 1;
+#		
+#		if( self.eventFlag.status != 6 or self.eventFlag.status != 7 ):
+#			trialIsNotEnding  = 0; # sorry for the double negative!
 		
-		if( self.eventFlag.status != 6 or self.eventFlag.status != 7 ):
-			trialIsNotEnding  = 0; # sorry for the double negative!
 			
 		# Only write data if the experiment is ongoing
-		if( 
-			( self.currentTrial.approachingObs == False ) or (self.expInProgress == False) ):
-			return
+		if( self.expInProgress and self.currentTrial.approachingObs ):
+			#( self.currentTrial.approachingObs == False ) or (self.expInProgress == False) ):
+			#return
 	
-		expDataString = self.getOutput()
-		self.expDataFile.write(expDataString + '\n')
-	
+			expDataString = self.getOutput()
+			#self.expDataFile.write(expDataString + '\n')
+			self.writer.write(expDataString + '\n')
+			
 	def registerWiimoteActions(self):
 				
 		wii = viz.add('wiimote.dle')#Add wiimote extension
@@ -1336,7 +1385,7 @@ class eventFlag(viz.EventClass):
 		##  Eventflag
 		
 		# 1 Trial Start
-		# 2 
+		# 2 Experiment start
 		# 3 
 		# 4 Right foot collides with obstacle
 		# 5 Left foot collides with obstacle
@@ -1617,7 +1666,8 @@ class trial(viz.EventClass):
 		if( self.lineObj != -1):
 			self.lineObj.remove()		
 			self.lineObj = -1
-	
+
+
 def demoMode(experimentObject):
 	
 #	duckBeginPos =  experimentObject.config.virtualPlane.getCenterPos('floor')

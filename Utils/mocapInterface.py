@@ -463,7 +463,7 @@ class trackerBuffer(viz.EventClass):
         
         # Get time and list of trackers for each sample
         #timeStamp_sIdx = [OWL.owlGetIntegerv(OWL.OWL_TIMESTAMP) - m[0] for m in trackerTuples_sIdx ]\
-        timeStamp_sIdx = [time.clock() - m[1] for m in trackerTuples_sIdx ]\
+        timeStamp_sIdx = [time.clock() - m[1] for m in trackerTuples_sIdx ]
         
         trackers_sIdx_tIdx = [m[2] for m in trackerTuples_sIdx ]
             
@@ -485,13 +485,14 @@ class trackerBuffer(viz.EventClass):
             ### Keyerror
             try:
                 # A list of tuples of form (timeStamp,XYZ)
+                
                 posBuffer_sIdx.append( (timeStamp_sIdx[sIdx], markers[markerID].pos) ) 
                     
             except KeyError, e:
                 print 'Marker index does not exist for at least one of the trackers stored in the buffer'
                 return
-
-        return posBuffer_sIdx
+            
+        return posBuffer_sIdx[::-1] # reverse the list so that most recent entries are last
     
     def psPositionToVizardPosition(self, x, y, z): # converts Phasespace pos to vizard cond
         return -sz * z + oz, sy * y + oy, -sx * x + ox
@@ -530,7 +531,7 @@ class trackerBuffer(viz.EventClass):
                 print 'Rigid index invalid for at least one of the trackers stored in the buffer'
                 return
         
-        return tformBuffer_sIdx
+        return tformBuffer_sIdx[::-1] # reverse the list so that most recent entries are last
         
 class phasespaceInterface(viz.EventClass):
     '''Handle the details of getting mocap data from phasespace.
