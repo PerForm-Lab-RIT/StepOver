@@ -523,11 +523,9 @@ class Experiment(viz.EventClass):
 		dataOutPutDir = config.sysCfg['writer']['outFileDir']
 		
 		self.expDataFile = open(dataOutPutDir + 'exp_data-' + dateTimeStr + '.txt','w+')
-		self.writer = dataWriter(self.expDataFile)
+		#self.writer = dataWriter(self.expDataFile)
 		
 		self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE,self.writeDataToText)
-		
-		#self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE, self.writeDataToText)
 		
 		
 		# Write out experiment metadata
@@ -1149,8 +1147,8 @@ class Experiment(viz.EventClass):
 			#return
 	
 			expDataString = self.getOutput()
-			#self.expDataFile.write(expDataString + '\n')
-			self.writer.write(expDataString + '\n')
+			self.expDataFile.write(expDataString + '\n')
+			#self.writer.write(expDataString + '\n')
 			
 	def registerWiimoteActions(self):
 				
