@@ -206,9 +206,7 @@ class VRLabConfig:
 		else:
 			self.use_eyeTracking = False
 			self.eyeTrackingCal = None
-			
-		#self.writables.append(self.eyeTrackingCal)
-			
+						
 		self.mocap = None
 		self.bodyCam = None
 		
@@ -227,11 +225,6 @@ class VRLabConfig:
 			planeName = self.sysCfg['virtualPlane']['planeName']
 			planeCornerFile = self.sysCfg['virtualPlane']['planeCornerFile']
 			self.virtualPlane = virtualPlane.virtualPlane(self,planeName,isAFloor,planeCornerFile)
-		
-	
-			
-		self.writables.append(self.mocap)
-		self.writables.append(self.bodyCam)
 		
 		if self.sysCfg['use_virtualPlane']:
 			viz.go(viz.FULLSCREEN | viz.QUAD_BUFFER)

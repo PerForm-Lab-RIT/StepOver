@@ -1110,12 +1110,13 @@ class dataWriter(viz.EventClass):
                 
             t2 = time.clock()
             # This is where text data is written to file
+            
             if( len(self.lineBuffer) > 0 ):
                 self.writeFromLineBuffer()
                 
-                if( self.isWriting == 1):
-                    print 'Writing took ' + str(time.clock() - t2)
-                    self.isWriting = 0
+            if( self.isWriting == 1 and len(self.lineBuffer) == 0 ):
+                print 'Writing took ' + str(time.clock() - t2)
+                self.isWriting = 0
                 
             elapsed = viz.tick() - self._updated
     

@@ -1,5 +1,14 @@
 ﻿"""
 Runs an experiment.
+
+Things required for transition to PandA Lab setup:
+
+- rename performLabVR2.cfg as <machineName>.cfg
+- replace all mocap calls with those particular to your system.  I tried to mark them with MOCAP
+- buy a wiimote, or goto <experiment>.registerWiimoteActions and associate the callbacks with keyboard presses
+- 
+
+
 """
 
 viz.res.addPath('resources')
@@ -105,10 +114,7 @@ class Configuration():
 		'''
 
 		dispDict = vizconnect.getRawDisplayDict()
-		
-		#self.clientWindow = dispDict['custom_window']
-		#self.riftWindow = dispDict['rift']
-		
+				
 		if self.sysCfg['use_phasespace']:
 			
 			from mocapInterface import phasespaceInterface	
@@ -151,13 +157,13 @@ class Configuration():
 		self.writer = None #Will get initialized later when the system starts
 		self.writables = list()
 		
-		#__setWinPriority()
-		#viz.setMultiSample(self.sysCfg['antiAliasPasses'])
-		#viz.MainWindow.clip(0.01 ,200)
+		self.__setWinPriority()
+		viz.setMultiSample(self.sysCfg['antiAliasPasses'])
+		viz.MainWindow.clip(0.01 ,200)
 		
-		#viz.vsync(1)
-		#viz.setOption("viz.glfinish", 1)
-		#viz.setOption("viz.dwm_composition", 0)
+		viz.vsync(1)
+		viz.setOption("viz.glfinish", 1)
+		viz.setOption("viz.dwm_composition", 0)
 		
 	def __createExpCfg(self, expCfgName):
 
@@ -345,59 +351,6 @@ class Configuration():
 			self.eyeTracker = smi_beta.iViewHMD(simulate=True)
 		else:
 			self.eyeTracker = smi_beta.iViewHMD()
-	
-	def __record_data__(self, e):
-		
-		if self.use_DVR and self.writer != None:
-			#print "Writing..."
-			self.writer.write(self.writables)
-		
-	def startDVR(self):
-		
-		if self.use_DVR:
-			print "Starting DVR"
-			from DVRwriter				import DVRwriter
-			from datetime 				import datetime
-			
-			metadata = 'unused per-file meta data' #Can be filled in with useful metadata if desired.
-			
-			if None == self.writer: #need to lazy initialize this because it has to be called after viz.go()
-				
-				sz = viz.window.getSize()
-				self.now = datetime.now()
-				nameRoot = '%s%d.%d.%d.%d-%d' % (self.sysCfg['writer']['outFileDir'], self.now.year, self.now.month, self.now.day, self.now.hour, self.now.minute)
-				outFile = '%s.%s' % (nameRoot, self.sysCfg['writer']['outFileName'])
-				self.expCfg.filename = '%s.expCfg.cfg' % (nameRoot)
-				self.sysCfg.filename = '%s.sysCfg.cfg' % (nameRoot)
-				
-				
-#				if 'L' == self.sysCfg['eyetracker']['eye']: 
-#					viewport = (0,      0,sz[0]/2,sz[1])
-#				else:               
-#					viewport = (sz[0]/2,0,sz[0]/2,sz[1])
-#				#fi
-				
-				viewport = self.clientWindow
-				viewPosXY = viewport.getPosition(viz.WINDOW_PIXELS)
-				viewSizeXY = viewport.getSize(viz.WINDOW_PIXELS)
-				
-				#viewport = (1920,0,1920,1200)
-				viewport = (0,0,1920,1200)
-				
-				
-				print "OutfileName:" + self.sysCfg['writer']['outFileName']
-				print "Metadata:" + metadata
-				print "Viewport:" + str(viewport)
-				print "Eyetracking:" + str(self.use_eyetracking)
-				
-			
-				self.writer = DVRwriter(outFile, metadata, viewport,0)
-				self.expCfg.write()
-				self.sysCfg.write()
-				
-			self.writer.turnOn()
-			
-
 
 class Experiment(viz.EventClass):
 	
@@ -475,8 +428,9 @@ class Experiment(viz.EventClass):
 		
 		self.maxTrialDuration = config.expCfg['experiment']['maxTrialDuration']
 		
-		# MOCAP: Set buffer length equal to 1.5x experiment trial duration
-		self.config.mocap.setBufferLength(self.maxTrialDuration)
+		# MocapInterace:  My mocap interface buffers data
+		# Set buffer length equal to 2x experiment trial duration
+		self.config.mocap.setBufferLength(2*self.maxTrialDuration)
 		
 		if( config.wiimote ):
 			self.registerWiimoteActions()
@@ -515,10 +469,7 @@ class Experiment(viz.EventClass):
 	
 		##############################################################
 		## Data output
-		
-		# DVR snaps a shot of the frame, records eye data, and contents of self.writables is written out to the movie
-		self.callback(viz.POST_SWAP_EVENT, self.config.__record_data__, viz.PRIORITY_LAST_UPDATE)
-	
+			
 		# Use text output
 		now = datetime.datetime.now()
 		dateTimeStr = str(now.year) + '-' + str(now.month) + '-' + str(now.day) + '-' + str(now.hour) + '-' + str(now.minute)
@@ -614,10 +565,7 @@ class Experiment(viz.EventClass):
 					# Remove box
 					self.currentTrial.waitingForGo = False
 					self.currentTrial.removeObs();
-					
-					#self.currentTrial.metronomeTimerObj.setEnabled(viz.TOGGLE);
-					#self.currentTrial.metronomeTimerObj = [];
-				
+	
 					self.currentTrial.goSignalTimerObj.setEnabled(viz.TOGGLE);
 					self.currentTrial.goSignalTimerObj = [];
 				
@@ -673,12 +621,6 @@ class Experiment(viz.EventClass):
 					collisionLoc_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
 					self.currentTrial.collisionLocOnObs_XYZ = collisionLoc_XYZ
 					
-					#obstacle.physNode.collisionPosLocal_XYZ
-					
-					#print 'Frame: ' + str(viz.getFrameNumber()) + ' collision at: ' + str(self.collisionLocOnObs_XYZ)
-					
-					#print 'Collided Objects are Left Foot and Obstacle at\n', self.collisionLocOnObs_XYZ
-					#self.currentTrial.removeObs()
 					viz.playSound(soundBank.beep)
 				
 				elif( physNode1 == rightFoot.physNode and physNode2 == obstacle.physNode ):
@@ -687,11 +629,7 @@ class Experiment(viz.EventClass):
 					collisionLoc_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
 
 					self.currentTrial.collisionLocOnObs_XYZ = collisionLoc_XYZ
-					
-					#obstacle.physNode.collisionPosLocal_XYZ
-					#print 'Collided Objects are Right Foot and Obstacle at\n', self.collisionLocOnObs_XYZ
-					#self.currentTrial.removeObs()
-					
+										
 					viz.playSound(soundBank.beep)
 			
 	def start(self):
@@ -699,63 +637,12 @@ class Experiment(viz.EventClass):
 		##This is called when the experiment should begin.
 		self.setEnabled(True)
 
-	def toggleEyeCalib(self):
-		"""
-		Toggles the calibration for eye tracking.
-		Note, that for this to work, toggling 
-		# self.config.camera must turn off your world model
-		# This is setup in testRoom.init().
-		
-		# Example of what's needed in testRoom.init
-		self.room = viz.addGroup()
-		self.model = viz.add('pit.osgb',parent = self.room)
-		"""
-		
-		if not self.config.mocap:
-			pass
-		#elif (self.config.mocap.isOn() == 1): 
-		elif( self.config.mocap.mainViewUpdateAction == False):
-			#self.config.mocap.turnOff()
-			self.config.mocap.enableHMDTracking()
-			#self.config.mocap.turnOn()
-		else:
-			self.config.mocap.disableHMDTracking()
-			
-		viz.mouse.setOverride(viz.TOGGLE)
-		
-		if( self.config.sysCfg['use_eyetracking'] ):
-			self.config.eyeTrackingCal.toggleCalib()
-		
-		self.inCalibrateMode = not self.inCalibrateMode
-		
-		if self.inCalibrateMode:
-			viz.clearcolor(.5, .5, .5)
-			viz.MainView.setPosition(0,0,0)
-			viz.MainView.setAxisAngle(0, 1, 0, 0)
-			viz.MainView.velocity([0,0,0]);
-			
-		else:
-			viz.clearcolor(0, 0, 0)
-			
-		if self.room:
-			#self.room.visible(viz.disable)
-			self.room.walls.visible(viz.TOGGLE)
-			self.room.objects.visible(viz.TOGGLE)
-		
-	def createCamera(self):
-		"""
-		Head camera is generally initialized as part of the system calls. Additional changes should be added here.
-		"""
-		pass		
-
-
+	
 	def onKeyDown(self, key):
 		"""
 		Interactive commands can be given via the keyboard. Some are provided here. You'll likely want to add more.
 		"""
-		
 		mocapSys = self.config.mocap;
-		
 		
 		if key == 't':
 			self.toggleWalkingDirection()
@@ -763,33 +650,27 @@ class Experiment(viz.EventClass):
 		##########################################################
 		## Keys used in the defauRRlt mode
 		
-		if( 'c' == key and self.config.sysCfg['use_eyetracking'] ):
-			self.toggleEyeCalib()
-			# a bit of a hack.  THe crossahair / calib ponit in viewpoint mapping is a bit off
-			# until you hit a key.  So, I'm doing that for you.
-			
-			self.config.eyeTrackingCal.updateOffset('s')
-			self.config.eyeTrackingCal.updateOffset('w')
-		
 		if (self.inCalibrateMode is False):
 
+			##  More MocapInterace functions
 			if key == 'P':
-				mocapSys.resetRigid('spine') # MOCAP
+				mocapSys.resetRigid('spine') 
 			elif key == 'S':
-				mocapSys.resetRigid('shutter') # MOCAP
+				mocapSys.resetRigid('shutter')
 			elif key == 'L':
-				mocapSys.resetRigid('left') # MOCAP
+				mocapSys.resetRigid('left') 
 				self.resizeFootBox('left')
 				
 			elif key == 'R':
-				mocapSys.resetRigid('right') # MOCAP
-				self.resizeFootBox('right') # MOCAP
+				mocapSys.resetRigid('right')
+				self.resizeFootBox('right')
 			
 			
 				
 				
 			if( viz.key.isDown( viz.KEY_CONTROL_L )):
 				
+				##  More MocapInterace functions
 				if key == 'p':
 					mocapSys.saveRigid('spine') # MOCAP
 				elif key == 's':
@@ -804,10 +685,11 @@ class Experiment(viz.EventClass):
 		if( key == 'v'):
 			pass
 			
-			#self.launchKeyUp()
-
 	def getExperimentMetaData(self):
-		
+		'''  
+		Write out experiment specific metadeta
+		MocapInterace - some parmaeters are specific to the mocap system
+		'''
 		config = self.config
 		outputString = '';
 		
@@ -818,17 +700,7 @@ class Experiment(viz.EventClass):
 		## Numblocks and block list
 		numBlocks = len(config.expCfg['experiment']['blockList']);
 		outputString = outputString  + 'numBlocks %f ' % (numBlocks)
-				
-	
-#		outputString = outputString + '[ blockTypeList '
-#		for bIdx in range(numBlocks):
-#			outputString = outputString + '%' % config.expCfg['experiment']['blockList'][bIdx]
-#		outputString = outputString + ' ] '
-
-
-	
-		#outputString = outputString + '[ Obstacle_XYZ %f %f %f ] ' % (self.currentTrial.obsLoc_XYZ[0],self.currentTrial.obsLoc_XYZ[1],self.currentTrial.obsLoc_XYZ[2])
-		
+						
 		outputString = outputString  + 'mocapRefresh %f ' % (config.mocap.owlParamFrequ)
 		outputString = outputString  + 'mocapInterp %f ' % (config.mocap.owlParamInterp)
 		outputString = outputString  + 'mocapPostProcess %f ' % (config.mocap.owlParamPostProcess)
@@ -841,7 +713,6 @@ class Experiment(viz.EventClass):
 		"""
 		Returns a string describing the current state of the experiment, useful for recording.
 
-		MOCAP - position / orientatoin info gathered from mocap data structures.
 		
 		"""
 		# Fix Me:
@@ -958,74 +829,6 @@ class Experiment(viz.EventClass):
 		viewQUAT_XYZW = viz.MainView.getMatrix()
 		outputString = outputString + '[ viewQUAT_XYZW %f %f %f %f ] ' % ( viewQUAT_XYZW[0], viewQUAT_XYZW[1], viewQUAT_XYZW[2], viewQUAT_XYZW[3] )
 		
-		## =======================================================================================================
-		## Buffered rigid body data: positions and quaternions
-		## =======================================================================================================
-		# I buffer my data in the mocapInterface
-		# Here, I have 2 functions for getting buffered data and writing it out to text
-		
-#		def getRbMarkerBuffData(rbFilename,rigidVarName,timeElapsed):
-#		# rigid body marker data
-#			
-#			mPositionOutString = ''
-#			
-#			mocap = self.config.mocap
-#			rb = mocap.returnPointerToRigid(rbFilename)
-#
-#			markerID_mIdx = rb.marker_ids
-#			
-#			for mID in markerID_mIdx:
-#				
-#				# Returns a list of tuples of the form (time,ListOfMarkerXYZ)
-#				#markerPosBuffer_sIdx_XYZ = [mocap.getMarkerPosition(mID,timeElapsed) for mID in markerID_mIdx]
-#				markerPosBuffer_sIdx_XYZ = mocap.getMarkerPosition(mID,timeElapsed)
-#				
-#				# Output is of format << varName-M0_xyz NumEntries [timeStamp x1 y1 z1 ] [timeStamp x2 y2 z2 ] [timeStamp x3 y3 z3 ] >>
-#				# ... for marker ID 0
-#				
-#				# Write the line header
-#				# e.g. '<< rigidVarName-M0_xyz 3 '
-#				mPositionOutString = mPositionOutString + '<< ' + rigidVarName + '-M' + str(mID) +'_XYZ ' + str(len(markerPosBuffer_sIdx_XYZ)) + ' '
-#				
-#				# Iterate through samples (sIdx) and get data
-#				for m in markerPosBuffer_sIdx_XYZ:
-#					
-#					timeStamp = m[0]
-#					pos_XYZ = m[1]
-#					
-#					mPositionOutString = mPositionOutString + '[ %f %f %f %f ] ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
-#					
-#				mPositionOutString = mPositionOutString  + '>> '
-#			
-#			return mPositionOutString
-#			
-#		def getRbBuffData(rbFilename,rigidVarName,timeElapsed):
-#		# rigid body position and quaternion (rotation) data
-#		
-#			tformBuffer_sIdx = self.config.mocap.getRigidTransform(rbFilename,timeElapsed)
-#			
-#			# Output is of format << Varname NumEntries [A B C] >>
-#			# eg << glassesRb_quatXYZW 3 [timeStamp x1 y1 z1 w1] [timeStamp x2 y2 z2 w2] [timeStamp x3 y3 z3 w3] >>
-#			
-#			tformOutString = '<< ' + rigidVarName + '_quatXYZW ' + str(len(tformBuffer_sIdx)) + ' '
-#			posOutString = '<< ' + rigidVarName + '_posXYZ ' + str(len(tformBuffer_sIdx)) + ' '
-#			
-#			# Build two seperate strings 
-#			for m in tformBuffer_sIdx:
-#			
-#				timeStamp = m[0]
-#				quat_XYZW = m[1].getQuat()
-#				
-#				tformOutString = tformOutString  + '[ %f %f %f %f %f ] ' % (timeStamp, quat_XYZW[0], quat_XYZW[1], quat_XYZW[2], quat_XYZW[3])
-#				
-#				pos_XYZ = m[1].getPosition()
-#				posOutString = posOutString  + '[ %f %f %f %f ] ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
-#			
-#			tformOutString = tformOutString  + '>> '
-#			posOutString = posOutString  + '>> '
-#			
-#			return tformOutString + posOutString
-#		
 		################################################################################################
 		## Record rigid body pos / quat, and marker on rigid pos 
 		################################################################################################
@@ -1036,22 +839,6 @@ class Experiment(viz.EventClass):
 			#trialDuration = time.clock() - self.currentTrial.startTime
 
 			mocap.writer.writeDataFromTime = self.currentTrial.startTime
-			
-			#mocap.writeRigidData('left','lFootRb',trialDuration)
-			#mocap.writeMarkerData('left','lFootRb',trialDuration)
-			
-#			print 'TRIAL DURATION: ' + str(trialDuration)
-#			outputString = outputString + getRbBuffData('shutter','glassRb',trialDuration )
-#			outputString = outputString + getRbMarkerBuffData('shutter','glassRb',trialDuration )
-#			
-#			outputString = outputString + getRbBuffData('left','lFootRb',trialDuration)
-#			outputString = outputString + getRbMarkerBuffData('left','lFootRb',trialDuration)
-#			
-#			outputString = outputString + getRbBuffData('right','rFootRb',trialDuration)
-#			outputString = outputString + getRbMarkerBuffData('right','rFoorRb',trialDuration)
-#			
-#			outputString = outputString + getRbBuffData('spine','spineRb',trialDuration)
-#			outputString = outputString + getRbMarkerBuffData('spine','spineRb',trialDuration)
 		
 		return outputString #%f %d' % (viz.getFrameTime(), self.inCalibrateMode)
 		
@@ -1147,20 +934,11 @@ class Experiment(viz.EventClass):
 			
 	def writeDataToText(self):
 		
-#		trialIsNotEnding  = 1;
-#		
-#		if( self.eventFlag.status != 6 or self.eventFlag.status != 7 ):
-#			trialIsNotEnding  = 0; # sorry for the double negative!
-		
-			
-		# Only write data if the experiment is ongoing
+
+		# Only write data if the experiment is ongoing and sub is approaching obstacle
 		if( self.expInProgress and self.currentTrial.approachingObs ):
-			#( self.currentTrial.approachingObs == False ) or (self.expInProgress == False) ):
-			#return
-	
 			expDataString = self.getOutput()
 			self.expDataFile.write(expDataString + '\n')
-			#self.writer.write(expDataString + '\n')
 			
 	def registerWiimoteActions(self):
 				
@@ -1178,6 +956,7 @@ class Experiment(viz.EventClass):
 			env = self.config.virtualPlane
 			markerNum  = self.config.sysCfg['virtualPlane']['recalibrateWithMarkerNum'] 
 			
+			# MOCAP - self.config.virtualPlane.setNewCornerPosition uses sensed marker position
 			vizact.onsensorup(self.config.wiimote,wii.BUTTON_LEFT,env.setNewCornerPosition,0,markerNum)
 			vizact.onsensorup(self.config.wiimote,wii.BUTTON_UP,env.setNewCornerPosition,1,markerNum)
 			vizact.onsensorup(self.config.wiimote,wii.BUTTON_RIGHT,env.setNewCornerPosition,2,markerNum)
@@ -1185,8 +964,6 @@ class Experiment(viz.EventClass):
 			vizact.onsensorup(self.config.wiimote,wii.BUTTON_PLUS,env.updatePowerwall)
 			
 			vizact.onsensorup(self.config.wiimote,wii.BUTTON_MINUS,viz.MainWindow.setStereoSwap,viz.TOGGLE)
-			#vizact.onsensorup(self.config.wiimote,wii.BUTTON_LEFT,mocapSys.resetRigid,'paddle')
-			#vizact.onsensorup(self.config.wiimote,wii.BUTTON_RIGHT,mocapSys.saveRigid,'paddle')
 
 	def endExperiment(self):
 		# If recording data, I recommend ending the experiment using:
@@ -1312,7 +1089,7 @@ class Experiment(viz.EventClass):
 		
 	def resizeFootBox(self,footSide):
 		''' 
-		MOCAP:  use foot markers to resize the rigid body to the dimensions of the foot
+		MocapInterace:  use foot markers to resize the rigid body to the dimensions of the foot
 		
 		Algorithm is:
 		
@@ -1335,7 +1112,7 @@ class Experiment(viz.EventClass):
 		footRigid = mocap.returnPointerToRigid(footSide)
 	
 		# Get positions of markers on rigid body in world coordinates
-		markerDict = footRigid.get_markers() # MOCAP
+		markerDict = footRigid.get_markers() # MocapInterace
 		
 		# Get marker positions
 		markerPosViz_mIdx_XYZ = [markerDict[mKey].pos for mKey in markerDict.keys()]
