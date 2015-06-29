@@ -442,36 +442,88 @@ class trackerBuffer(viz.EventClass):
             currentTime = time.clock()
             #currentTime =  OWL.owlGetIntegerv(OWL.OWL_TIMESTAMP)
         
+            t0 = time.time()
+            
             timeSinceSample_fr = [currentTime - m[1] for m in self.buffer_sIdx ]
+            
+            t1 = time.time()
+            
+            print 'A: ' + str(t1-t0) 
             
             # find the first index smaller than bufferDurationS
             firstIndex = next(idx for idx, timePast in enumerate(timeSinceSample_fr) if timePast <= lookBackDurationS ) 
+            
+            t2 = time.time()
+            
+            print 'B: ' + str(t2-t1) 
             
             # return new values
             # Note that you can't slice into deque without using isslice()        
             return collections.deque(itertools.islice(self.buffer_sIdx, firstIndex, len(self.buffer_sIdx)))
         
-    def getMarkerPosition(self,markerID,trackerID,lookBackDurationS):
+    def getMarkerPosition(self,markerID,lookBackDurationS):
         '''
         Returns a list of tuples of form (timeStamp,XYZ)
         '''
-                
+        
+        t0 = time.time()
+        
         # passes back a list of tuples of form (time,listOfTrackers) 
         # This list is just a slice of self.buffer_sIdx
         trackerTuples_sIdx = self.getTrackers(lookBackDurationS)
         
+        t1 = time.time()    
+        print 'C: ' + str(t1-t0) 
+        
         # Get time and list of trackers for each sample
         #timeStamp_sIdx = [OWL.owlGetIntegerv(OWL.OWL_TIMESTAMP) - m[0] for m in trackerTuples_sIdx ]\
-        timeStamp_sIdx = [time.clock() - sample[1] for sample in trackerTuples_sIdx ]
-        pos_sIdx = [sample[2][trackerID].get_marker(markerID).pos for sample in trackerTuples_sIdx]
+        timeStamp_sIdx = [time.clock() - m[1] for m in trackerTuples_sIdx ]
+        
+        trackers_sIdx_tIdx = [m[2] for m in trackerTuples_sIdx ]
+            
+        t2 = time.time()
+        print 'D: ' + str(t2-t1) 
         
         posBuffer_sIdx = []
-        
-        for sIdx in range(len(pos_sIdx)):
-            posBuffer_sIdx.append((timeStamp_sIdx[sIdx],pos_sIdx[sIdx]))
+
+        # Iterate through each sample.
+        # ...remember that each sample stores a list of trackers
+        for sIdx, sample_tIdx in enumerate(trackers_sIdx_tIdx):
             
-        return posBuffer_sIdx[::-1]
+            # Marker info is stored across all trackers
+            # Iterate through list of trackers
+            # grab marker info and store it here
+
+            markers = {}
+            # for each tracker in the sample
+            for tracker in sample_tIdx:
+                
+                markers_mIdx = tracker.get_markers()
+                
+                # for ecah marker in the tracker
+                for mIdx in markers_mIdx:
+                    
+                    # update marker dictionary
+                    markers[mIdx] = markers_mIdx[mIdx]
+                
+                markers.update(tracker.get_markers())
+            
+            ### Keyerror
+            try:
+                # A list of tuples of form (timeStamp,XYZ)
+                
+                posBuffer_sIdx.append( (timeStamp_sIdx[sIdx], markers[markerID].pos) ) 
+                    
+            except KeyError, e:
+                print 'Marker index does not exist for at least one of the trackers stored in the buffer'
+                return
+                
+            #t5 = time.time()
+            #print 'F: ' + str(t5-t4) 
+        #t3 = time.time()
+        #print 'E: ' + str(t3-t2) 
         
+        return posBuffer_sIdx[::-1] # reverse the list so that most recent entries are last
     
     def psPositionToVizardPosition(self, x, y, z): # converts Phasespace pos to vizard cond
         return -sz * z + oz, sy * y + oy, -sx * x + ox
@@ -538,10 +590,11 @@ class phasespaceInterface(viz.EventClass):
         
         super(phasespaceInterface, self).__init__()
     
+        
         #self.trackPosBuff_sIdx_mIdx_XYZ = collections.deque(maxlen=200) # a deque of tuples (time,[marker tracker list])
         
+        
         self.config = config
-        self.writer = []
         
         if config==None:
             
@@ -642,14 +695,12 @@ class phasespaceInterface(viz.EventClass):
             
             markersToTrack = list( set(range(self.owlParamMarkerCount)) - set(markersFromRigids.keys())  )            
             self.track_points( markersToTrack  )
-    
         
         ###########################################################################
-        
         self._updated = viz.tick()
         self._thread = None
         self._running = False
-        
+
     def __del__(self):
         '''Clean up our connection to the phasespace server.'''
         OWL.owlDone()
@@ -802,14 +853,9 @@ class phasespaceInterface(viz.EventClass):
         '''
         
         if( bufferDurationS ):
-            
-            tracker, trackerIdx = self.get_MarkerTracker(markerIdx)
-            return self.markerTrackerBuffer.getMarkerPosition(markerIdx,trackerIdx,bufferDurationS)
-            
+            return self.markerTrackerBuffer.getMarkerPosition(markerIdx,bufferDurationS)
         else:
-
             markerTrackers_mIdx = self.get_markers()
-            
             try:
                 return markerTrackers_mIdx[markerIdx].pos
             except:
@@ -834,7 +880,7 @@ class phasespaceInterface(viz.EventClass):
                 
             if( markerIdx in tracker.marker_ids ):
                     
-                    return tracker, tIdx
+                    return tracker
                 
         print 'get_MarkerTracker: Could not find marker ' + str(markerIdx) + ' in trackers.'
     
@@ -1012,13 +1058,7 @@ class phasespaceInterface(viz.EventClass):
         self.markerTrackerBuffer =  trackerBuffer(durationSecs)
 
         #self.toggleUpdateWithMarker()
-    
-    def createOutputFile(self,fileObj):
-        
-        self.writer = dataWriter(self,fileObj)
-        self.writer.rigidsToBeWritten_rIdx = self.rigidFileNames_ridx
-  
-    
+
 #    def showMarkers(self):
 #        
 #        
@@ -1045,155 +1085,56 @@ class phasespaceInterface(viz.EventClass):
 
 
 class dataWriter(viz.EventClass):	
-    def __init__(self,mocap,fileObj):
 
-        viz.EventClass.__init__(self)
+	def __init__(self,fileObj):
+		
+		viz.EventClass.__init__(self)
 
-        self.lineBuffer = collections.deque()
-        self._lock = threading.Lock()
-        self.fileObj = fileObj
-
-        self.mocap = mocap
-        
-        self._updated = viz.tick()
-        self._thread = None
-        self._running = False	
-
-        # This class will write out any data newer than self.writeTime 
-        self.writeDataFromTime = 0        
-        
-        self.isWriting = 0
-
-        self.rigidsToBeWritten_rIdx = []
-        
-        self.start_thread()
-
-    def write(self,lineData):
-        '''
-        This adds text to a buffer which is written out by 
-        writeFromLineBuffer - the threaded function
-        '''
-        with self._lock:
-            # append line to start of line buffer
-            self.lineBuffer.appendleft(lineData)
-
-    def start_thread(self):
-        
-        self._running = True
-        self._thread = threading.Thread(target=self.update_thread)
-        self._thread.start()
-        self.callback(viz.EXIT_EVENT, self.stop_thread)
-
-    def stop_thread(self):
-        
-        self._running = False
-        if self._thread:
-            self._thread.join()
-            self._thread = None
-
-    def update_thread(self):
-
-        while self._running:
-            
-            # This is where text data is gathered, formatted into a string, and appended to the writeOutBuffer
-            if( self.writeDataFromTime > 0):
-                self.isWriting = 1
-                t1 = time.clock()
-
-                for rIdx in self.rigidsToBeWritten_rIdx:
-                    
-                    self.write( self.formatRigidData(rIdx) )
-                    self.write( self.formatMarkerData(rIdx))
-                self.writeDataFromTime = 0
-                
-                print 'Reading took ' + str(time.clock() - t1)
-                
-            t2 = time.clock()
-            # This is where text data is written to file
-            if( len(self.lineBuffer) > 0 ):
-                self.writeFromLineBuffer()
-                
-                if( self.isWriting == 1):
-                    print 'Writing took ' + str(time.clock() - t2)
-                    self.isWriting = 0
-                
-            elapsed = viz.tick() - self._updated
+		self.lineBuffer = collections.deque()
+		self._lock = threading.Lock()
+		self.fileObj = fileObj
+		
+		self._updated = viz.tick()
+		self._thread = None
+		self._running = False	
+		
+		self.start_thread()
     
-    def writeFromLineBuffer(self):
-        
-        with self._lock:
-            for idx in range(len(self.lineBuffer)):
-                # write out last (oldest) entry
-                self.fileObj.write(self.lineBuffer[-1])
-                self.lineBuffer.pop()
-    
-    
-    def formatMarkerData(self,rbFilename):
-    # rigid body marker data
-        
-        mPositionOutString = ''
+	def write(self,lineData):
+		'''
+		This adds text to a buffer which is written out by 
+		writeFromLineBuffer - the threaded function
+		'''
+		with self._lock:
+			# append line to start of line buffer
+			self.lineBuffer.appendleft(lineData)
+		
+	def writeFromLineBuffer(self):
+		
+		with self._lock:
+			for idx in range(len(self.lineBuffer)):
+				# write out last (oldest) entry
+				self.fileObj.write(self.lineBuffer[-1])
+				self.lineBuffer.pop()
 
-        rb = self.mocap.returnPointerToRigid(rbFilename)
+	def start_thread(self):
+		self._running = True
+		self._thread = threading.Thread(target=self.update_thread)
+		self._thread.start()
+		self.callback(viz.EXIT_EVENT, self.stop_thread)
 
-        markerID_mIdx = rb.marker_ids
-        
-        for mID in markerID_mIdx:
-            
-            # Returns a list of tuples of the form (time,ListOfMarkerXYZ)
-            #markerPosBuffer_sIdx_XYZ = [mocap.getMarkerPosition(mID,timeElapsed) for mID in markerID_mIdx]
-            timeElapsed = time.clock() - self.writeDataFromTime
-            markerPosBuffer_sIdx_XYZ = self.mocap.getMarkerPosition(mID,timeElapsed)
-            
-            # Write the line header
-            # e.g. '<< rigidVarName-M0_xyz 3 '
-            mPositionOutString = mPositionOutString + '<< ' + rbFilename + '-M' + str(mID) +'_XYZ ' + str(len(markerPosBuffer_sIdx_XYZ)) + ' '
-            
-            # Iterate through samples (sIdx) and get data
-            for m in markerPosBuffer_sIdx_XYZ:
-                
-                timeStamp = m[0]
-                pos_XYZ = m[1]
-                
-                mPositionOutString = mPositionOutString + '[ %f %f %f %f ] ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
-                
-            mPositionOutString = mPositionOutString  + '>> '
-        
-        #self.writer.write(mPositionOutString)
-        #return
-        
-        return mPositionOutString
-        
-    def formatRigidData(self,rbFilename):
+	def stop_thread(self):
+		self._running = False
+		if self._thread:
+			self._thread.join()
+			self._thread = None
 
-        # rigid body position and quaternion (rotation) data
-        timeElapsed = time.clock() - self.writeDataFromTime
-        tformBuffer_sIdx = self.mocap.getRigidTransform(rbFilename,timeElapsed)
+	def update_thread(self):
+		while self._running:
+			self.writeFromLineBuffer()
+			elapsed = viz.tick() - self._updated
+
         
-        # Output is of format << Varname NumEntries [A B C] >>
-        # eg << glassesRb_quatXYZW 3 [timeStamp x1 y1 z1 w1] [timeStamp x2 y2 z2 w2] [timeStamp x3 y3 z3 w3] >>
-        
-        tformOutString = '<< ' + rbFilename + '_quatXYZW ' + str(len(tformBuffer_sIdx)) + ' '
-        posOutString = '<< ' + rbFilename + '_posXYZ ' + str(len(tformBuffer_sIdx)) + ' '
-        
-        # Build two seperate strings 
-        for m in tformBuffer_sIdx:
-        
-            timeStamp = m[0]
-            quat_XYZW = m[1].getQuat()
-            
-            tformOutString = tformOutString  + '[ %f %f %f %f %f ] ' % (timeStamp, quat_XYZW[0], quat_XYZW[1], quat_XYZW[2], quat_XYZW[3])
-            
-            pos_XYZ = m[1].getPosition()
-            posOutString = posOutString  + '[ %f %f %f %f ] ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
-        
-        tformOutString = tformOutString  + '>> '
-        posOutString = posOutString  + '>> '
-        
-        #self.writer.write(tformOutString + posOutString)
-        
-        return tformOutString + posOutString
-    
-    
 if __name__ == "__main__":
   
   

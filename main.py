@@ -512,6 +512,9 @@ class Experiment(viz.EventClass):
 		self.starttimer( self.perFrameTimerID, viz.FASTEST_EXPIRATION, viz.FOREVER)
 		
 		self.trialTimeoutTimerID = viz.getEventID('trialTimeoutTimerID') # Generates a unique ID.
+	
+		##############################################################
+		## Data output
 		
 		# DVR snaps a shot of the frame, records eye data, and contents of self.writables is written out to the movie
 		self.callback(viz.POST_SWAP_EVENT, self.config.__record_data__, viz.PRIORITY_LAST_UPDATE)
@@ -521,17 +524,22 @@ class Experiment(viz.EventClass):
 		dateTimeStr = str(now.year) + '-' + str(now.month) + '-' + str(now.day) + '-' + str(now.hour) + '-' + str(now.minute)
 		
 		dataOutPutDir = config.sysCfg['writer']['outFileDir']
-		
 		self.expDataFile = open(dataOutPutDir + 'exp_data-' + dateTimeStr + '.txt','w+')
+		self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE,self.writeDataToText)
 		#self.writer = dataWriter(self.expDataFile)
 		
-		self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE,self.writeDataToText)
-		
+		# MocapInterface handles writing mocap data, but requires a file
+		self.mocapDataFile = open(dataOutPutDir + 'mocap_data-' + dateTimeStr + '.txt','w+')
+		self.config.mocap.createOutputFile(self.mocapDataFile)
 		
 		# Write out experiment metadata
 		expMetaDataStr = ''
 		expMetaDataStr = self.getExperimentMetaData()
 		self.expDataFile.write(expMetaDataStr + '\n')
+		
+		
+		##############################################################
+		## Event flag
 		
 		# Create an event flag object
 		# This var is set to an int on every frame
@@ -826,8 +834,6 @@ class Experiment(viz.EventClass):
 		outputString = outputString  + 'mocapPostProcess %f ' % (config.mocap.owlParamPostProcess)
 		
 		
-		
-		
 		return outputString 
 		
 	def getOutput(self):
@@ -958,88 +964,94 @@ class Experiment(viz.EventClass):
 		# I buffer my data in the mocapInterface
 		# Here, I have 2 functions for getting buffered data and writing it out to text
 		
-		def getRbMarkerBuffData(rbFilename,rigidVarName,timeElapsed):
-		# rigid body marker data
-			
-			mPositionOutString = ''
-			
-			mocap = self.config.mocap
-			rb = mocap.returnPointerToRigid(rbFilename)
-
-			markerID_mIdx = rb.marker_ids
-			
-			for mID in markerID_mIdx:
-				
-				# Returns a list of tuples of the form (time,ListOfMarkerXYZ)
-				#markerPosBuffer_sIdx_XYZ = [mocap.getMarkerPosition(mID,timeElapsed) for mID in markerID_mIdx]
-				markerPosBuffer_sIdx_XYZ = mocap.getMarkerPosition(mID,timeElapsed)
-				
-				# Output is of format << varName-M0_xyz NumEntries [timeStamp x1 y1 z1 ] [timeStamp x2 y2 z2 ] [timeStamp x3 y3 z3 ] >>
-				# ... for marker ID 0
-				
-				# Write the line header
-				# e.g. '<< rigidVarName-M0_xyz 3 '
-				mPositionOutString = mPositionOutString + '<< ' + rigidVarName + '-M' + str(mID) +'_XYZ ' + str(len(markerPosBuffer_sIdx_XYZ)) + ' '
-				
-				# Iterate through samples (sIdx) and get data
-				for m in markerPosBuffer_sIdx_XYZ:
-					
-					timeStamp = m[0]
-					pos_XYZ = m[1]
-					
-					mPositionOutString = mPositionOutString + '[ %f %f %f %f ] ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
-					
-				mPositionOutString = mPositionOutString  + '>> '
-			
-			return mPositionOutString
-			
-		def getRbBuffData(rbFilename,rigidVarName,timeElapsed):
-		# rigid body position and quaternion (rotation) data
-		
-			tformBuffer_sIdx = self.config.mocap.getRigidTransform(rbFilename,timeElapsed)
-			
-			# Output is of format << Varname NumEntries [A B C] >>
-			# eg << glassesRb_quatXYZW 3 [timeStamp x1 y1 z1 w1] [timeStamp x2 y2 z2 w2] [timeStamp x3 y3 z3 w3] >>
-			
-			tformOutString = '<< ' + rigidVarName + '_quatXYZW ' + str(len(tformBuffer_sIdx)) + ' '
-			posOutString = '<< ' + rigidVarName + '_posXYZ ' + str(len(tformBuffer_sIdx)) + ' '
-			
-			# Build two seperate strings 
-			for m in tformBuffer_sIdx:
-			
-				timeStamp = m[0]
-				quat_XYZW = m[1].getQuat()
-				
-				tformOutString = tformOutString  + '[ %f %f %f %f %f ] ' % (timeStamp, quat_XYZW[0], quat_XYZW[1], quat_XYZW[2], quat_XYZW[3])
-				
-				pos_XYZ = m[1].getPosition()
-				posOutString = posOutString  + '[ %f %f %f %f ] ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
-			
-			tformOutString = tformOutString  + '>> '
-			posOutString = posOutString  + '>> '
-			
-			return tformOutString + posOutString
-		
+#		def getRbMarkerBuffData(rbFilename,rigidVarName,timeElapsed):
+#		# rigid body marker data
+#			
+#			mPositionOutString = ''
+#			
+#			mocap = self.config.mocap
+#			rb = mocap.returnPointerToRigid(rbFilename)
+#
+#			markerID_mIdx = rb.marker_ids
+#			
+#			for mID in markerID_mIdx:
+#				
+#				# Returns a list of tuples of the form (time,ListOfMarkerXYZ)
+#				#markerPosBuffer_sIdx_XYZ = [mocap.getMarkerPosition(mID,timeElapsed) for mID in markerID_mIdx]
+#				markerPosBuffer_sIdx_XYZ = mocap.getMarkerPosition(mID,timeElapsed)
+#				
+#				# Output is of format << varName-M0_xyz NumEntries [timeStamp x1 y1 z1 ] [timeStamp x2 y2 z2 ] [timeStamp x3 y3 z3 ] >>
+#				# ... for marker ID 0
+#				
+#				# Write the line header
+#				# e.g. '<< rigidVarName-M0_xyz 3 '
+#				mPositionOutString = mPositionOutString + '<< ' + rigidVarName + '-M' + str(mID) +'_XYZ ' + str(len(markerPosBuffer_sIdx_XYZ)) + ' '
+#				
+#				# Iterate through samples (sIdx) and get data
+#				for m in markerPosBuffer_sIdx_XYZ:
+#					
+#					timeStamp = m[0]
+#					pos_XYZ = m[1]
+#					
+#					mPositionOutString = mPositionOutString + '[ %f %f %f %f ] ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
+#					
+#				mPositionOutString = mPositionOutString  + '>> '
+#			
+#			return mPositionOutString
+#			
+#		def getRbBuffData(rbFilename,rigidVarName,timeElapsed):
+#		# rigid body position and quaternion (rotation) data
+#		
+#			tformBuffer_sIdx = self.config.mocap.getRigidTransform(rbFilename,timeElapsed)
+#			
+#			# Output is of format << Varname NumEntries [A B C] >>
+#			# eg << glassesRb_quatXYZW 3 [timeStamp x1 y1 z1 w1] [timeStamp x2 y2 z2 w2] [timeStamp x3 y3 z3 w3] >>
+#			
+#			tformOutString = '<< ' + rigidVarName + '_quatXYZW ' + str(len(tformBuffer_sIdx)) + ' '
+#			posOutString = '<< ' + rigidVarName + '_posXYZ ' + str(len(tformBuffer_sIdx)) + ' '
+#			
+#			# Build two seperate strings 
+#			for m in tformBuffer_sIdx:
+#			
+#				timeStamp = m[0]
+#				quat_XYZW = m[1].getQuat()
+#				
+#				tformOutString = tformOutString  + '[ %f %f %f %f %f ] ' % (timeStamp, quat_XYZW[0], quat_XYZW[1], quat_XYZW[2], quat_XYZW[3])
+#				
+#				pos_XYZ = m[1].getPosition()
+#				posOutString = posOutString  + '[ %f %f %f %f ] ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
+#			
+#			tformOutString = tformOutString  + '>> '
+#			posOutString = posOutString  + '>> '
+#			
+#			return tformOutString + posOutString
+#		
 		################################################################################################
 		## Record rigid body pos / quat, and marker on rigid pos 
 		################################################################################################
 		
 		if( self.eventFlag.status == 6 or self.eventFlag.status == 7 ):
+
+			mocap = self.config.mocap
+			#trialDuration = time.clock() - self.currentTrial.startTime
+
+			mocap.writer.writeDataFromTime = self.currentTrial.startTime
 			
-			trialDuration = time.clock() - self.currentTrial.startTime
+			#mocap.writeRigidData('left','lFootRb',trialDuration)
+			#mocap.writeMarkerData('left','lFootRb',trialDuration)
 			
-			print 'TRIAL DURATION: ' + str(trialDuration)
-			outputString = outputString + getRbBuffData('shutter','glassRb',trialDuration )
-			outputString = outputString + getRbMarkerBuffData('shutter','glassRb',trialDuration )
-			
-			outputString = outputString + getRbBuffData('left','lFootRb',trialDuration)
-			outputString = outputString + getRbMarkerBuffData('left','lFootRb',trialDuration)
-			
-			outputString = outputString + getRbBuffData('right','rFootRb',trialDuration)
-			outputString = outputString + getRbMarkerBuffData('right','rFoorRb',trialDuration)
-			
-			outputString = outputString + getRbBuffData('spine','spineRb',trialDuration)
-			outputString = outputString + getRbMarkerBuffData('spine','spineRb',trialDuration)
+#			print 'TRIAL DURATION: ' + str(trialDuration)
+#			outputString = outputString + getRbBuffData('shutter','glassRb',trialDuration )
+#			outputString = outputString + getRbMarkerBuffData('shutter','glassRb',trialDuration )
+#			
+#			outputString = outputString + getRbBuffData('left','lFootRb',trialDuration)
+#			outputString = outputString + getRbMarkerBuffData('left','lFootRb',trialDuration)
+#			
+#			outputString = outputString + getRbBuffData('right','rFootRb',trialDuration)
+#			outputString = outputString + getRbMarkerBuffData('right','rFoorRb',trialDuration)
+#			
+#			outputString = outputString + getRbBuffData('spine','spineRb',trialDuration)
+#			outputString = outputString + getRbMarkerBuffData('spine','spineRb',trialDuration)
 		
 		return outputString #%f %d' % (viz.getFrameTime(), self.inCalibrateMode)
 		
@@ -1173,11 +1185,9 @@ class Experiment(viz.EventClass):
 			vizact.onsensorup(self.config.wiimote,wii.BUTTON_PLUS,env.updatePowerwall)
 			
 			vizact.onsensorup(self.config.wiimote,wii.BUTTON_MINUS,viz.MainWindow.setStereoSwap,viz.TOGGLE)
-			#vizact.onsensorup(self.config.wiimote,wii.BUTTON_LEFT,mocapSys.resetRigid,'paddle') 
-			#vizact.onsensorup(self.config.wiimote,wii.BUTTON_RIGHT,mocapSys.saveRigid,'paddle') 
+			#vizact.onsensorup(self.config.wiimote,wii.BUTTON_LEFT,mocapSys.resetRigid,'paddle')
+			#vizact.onsensorup(self.config.wiimote,wii.BUTTON_RIGHT,mocapSys.saveRigid,'paddle')
 
-		
-		
 	def endExperiment(self):
 		# If recording data, I recommend ending the experiment using:
 		#vizact.ontimer2(.2,0,self.endExperiment)
@@ -1189,6 +1199,10 @@ class Experiment(viz.EventClass):
 		# TODO: Make sure this is the correct place to close and flush the Text File
 		self.expDataFile.flush()
 		self.expDataFile.close()
+		
+		self.mocapDataFile.flush()
+		self.mocapDataFile.close()
+		
 		print 'End of Trial & Block ==> TxT file Saved & Closed'
 		print 'end experiment'
 		self.expInProgress = False
