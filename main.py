@@ -776,7 +776,7 @@ class Experiment(viz.EventClass):
 		if( self.eventFlag.status == 4 or self.eventFlag.status == 5 ):		
 
 			collisionPosLocal_XYZ = self.currentTrial.collisionLocOnObs_XYZ
-			outputString = outputString + ' collisionLocOnObs_XYZ [ %f %f %f ] ' % (collisionPosLocal_XYZ[0], collisionPosLocal_XYZ[1], collisionPosLocal_XYZ[2])
+			outputString = outputString + '[ collisionLocOnObs_XYZ %f %f %f ] ' % (collisionPosLocal_XYZ[0], collisionPosLocal_XYZ[1], collisionPosLocal_XYZ[2])
 		
 		## =======================================================================================================
 		## VisNode body positions and quaternions
