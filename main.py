@@ -469,24 +469,42 @@ class Experiment(viz.EventClass):
 	
 		##############################################################
 		## Data output
-			
-		# Use text output
+		
 		now = datetime.datetime.now()
 		dateTimeStr = str(now.year) + '-' + str(now.month) + '-' + str(now.day) + '-' + str(now.hour) + '-' + str(now.minute)
+		 
+		import os
 		
-		dataOutPutDir = config.sysCfg['writer']['outFileDir']
+		dataOutPutDir = config.sysCfg['writer']['outFileDir'] + '//' +str(dateTimeStr) + '//'
+		#dataOutPutDir = config.sysCfg['writer']['outFileDir'] +str(dateTimeStr) 
+		
+		if not os.path.exists(dataOutPutDir):
+			os.makedirs(dataOutPutDir)
+		
+		# Exp data file
 		self.expDataFile = open(dataOutPutDir + 'exp_data-' + dateTimeStr + '.txt','w+')
+		# Function to automate exp data writeout
 		self.writeOutDataFun = vizact.onupdate(viz.PRIORITY_LAST_UPDATE,self.writeDataToText)
-		#self.writer = dataWriter(self.expDataFile)
 		
-		# MocapInterface handles writing mocap data, but requires a file
-		self.mocapDataFile = open(dataOutPutDir + 'mocap_data-' + dateTimeStr + '.txt','w+')
-		self.config.mocap.createOutputFile(self.mocapDataFile)
+		# Write experiment metadata out to line 1 of exp data file12
 		
-		# Write out experiment metadata
 		expMetaDataStr = ''
 		expMetaDataStr = self.getExperimentMetaData()
 		self.expDataFile.write(expMetaDataStr + '\n')
+		
+		# MocapInterface handles writing mocap data in a seperate thread.  It's comp. intensive!
+		self.mocapDataFile = open(dataOutPutDir + 'mocap_data-' + dateTimeStr + '.txt','w+')
+		self.config.mocap.createOutputFile(self.mocapDataFile)
+		
+		from shutil import copyfile
+		
+		# Copy config files
+		copyfile('.\\' + expConfigFileName, dataOutPutDir+expConfigFileName ) # exp config
+		copyfile('.\\expCfgSpec.ini', dataOutPutDir + 'expCfgSpec.ini' )# exp config spec1
+		
+		
+		copyfile('.\\'+os.environ['COMPUTERNAME'] + '.cfg', dataOutPutDir+os.environ['COMPUTERNAME'] + '.cfg')# system config 
+		copyfile('.\\sysCfgSpec.ini', dataOutPutDir+ 'sysCfgSpec.ini') # system config spec
 		
 		
 		##############################################################
@@ -962,7 +980,7 @@ class Experiment(viz.EventClass):
 			vizact.onsensorup(self.config.wiimote,wii.BUTTON_RIGHT,env.setNewCornerPosition,2,markerNum)
 			vizact.onsensorup(self.config.wiimote,wii.BUTTON_DOWN,env.setNewCornerPosition,3,markerNum)
 			vizact.onsensorup(self.config.wiimote,wii.BUTTON_PLUS,env.updatePowerwall)
-			
+
 			vizact.onsensorup(self.config.wiimote,wii.BUTTON_MINUS,viz.MainWindow.setStereoSwap,viz.TOGGLE)
 
 	def endExperiment(self):
@@ -974,11 +992,14 @@ class Experiment(viz.EventClass):
 		
 		#end experiment
 		# TODO: Make sure this is the correct place to close and flush the Text File
+		
 		self.expDataFile.flush()
 		self.expDataFile.close()
 		
-		self.mocapDataFile.flush()
-		self.mocapDataFile.close()
+		# Important because it calls the join() command
+		# <thread>.join() merges the thread and prevents a premature exit
+		# ... for exaple, before the thread has finished writing mocap data to the file
+		self.config.mocap.stop_thread()
 		
 		print 'End of Trial & Block ==> TxT file Saved & Closed'
 		print 'end experiment'

@@ -542,6 +542,7 @@ class phasespaceInterface(viz.EventClass):
         
         self.config = config
         self.writer = []
+        self.isWriting = False
         
         if config==None:
             
@@ -661,6 +662,11 @@ class phasespaceInterface(viz.EventClass):
         self.callback(viz.EXIT_EVENT, self.stop_thread)
 
     def stop_thread(self):
+
+        if self.isWriting:
+            # This closes the text file and joins the thread
+            self.writer.stop_thread()
+        
         self._running = False
         if self._thread:
             self._thread.join()
@@ -1015,6 +1021,7 @@ class phasespaceInterface(viz.EventClass):
     
     def createOutputFile(self,fileObj):
         
+        self.isWriting = True
         self.writer = dataWriter(self,fileObj)
         self.writer.rigidsToBeWritten_rIdx = self.rigidFileNames_ridx
   
@@ -1087,9 +1094,14 @@ class dataWriter(viz.EventClass):
     def stop_thread(self):
         
         self._running = False
+        
         if self._thread:
+
             self._thread.join()
             self._thread = None
+            
+            self.fileObj.flush()
+            self.fileObj.close()
 
     def update_thread(self):
 
@@ -1101,9 +1113,10 @@ class dataWriter(viz.EventClass):
                 t1 = time.clock()
 
                 for rIdx in self.rigidsToBeWritten_rIdx:
-                    
-                    self.write( self.formatRigidData(rIdx) )
-                    self.write( self.formatMarkerData(rIdx))
+                    self.write( self.formatRigidData(rIdx) + self.formatMarkerData(rIdx))
+                
+                self.write('\n') # One big line per trial
+                
                 self.writeDataFromTime = 0
                 
                 print 'Reading took ' + str(time.clock() - t1)
@@ -1112,7 +1125,7 @@ class dataWriter(viz.EventClass):
             # This is where text data is written to file
             
             if( len(self.lineBuffer) > 0 ):
-                self.writeFromLineBuffer()
+                self.writeFromBuffer()
                 
             if( self.isWriting == 1 and len(self.lineBuffer) == 0 ):
                 print 'Writing took ' + str(time.clock() - t2)
@@ -1120,7 +1133,7 @@ class dataWriter(viz.EventClass):
                 
             elapsed = viz.tick() - self._updated
     
-    def writeFromLineBuffer(self):
+    def writeFromBuffer(self):
         
         with self._lock:
             for idx in range(len(self.lineBuffer)):
@@ -1159,9 +1172,7 @@ class dataWriter(viz.EventClass):
                 
             mPositionOutString = mPositionOutString  + '>> '
         
-        #self.writer.write(mPositionOutString)
-        #return
-        
+
         return mPositionOutString
         
     def formatRigidData(self,rbFilename):
