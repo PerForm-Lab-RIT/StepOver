@@ -403,7 +403,7 @@ class RigidTracker(PointTracker):
                             
         OWL.owlTracker(self._index, OWL.OWL_ENABLE)
 
-class psBuffer(viz.EventClass):
+class trackerBuffer(viz.EventClass):
     '''
     FIFO DEQUE BUFFER
     Append new data to the right of the deque
@@ -411,142 +411,90 @@ class psBuffer(viz.EventClass):
     '''
     def __init__(self,durationSecs = 10):
         
-        self.bufferLength = 1000000 #durationSecs * OWL.owlGetFloatv(OWL.OWL_FREQUENCY)[0]
+        self.bufferLength = 1000000 #durationSecs #* OWL.owlGetFloatv(OWL.OWL_FREQUENCY)[0]
         self.buffer_sIdx = collections.deque(maxlen=self.bufferLength) # a FIFO deque of tuples (time,[marker tracker list])
-        
+
         self._lock = threading.Lock()
-    
-    def getLastFrame(self):
-        
-        if( self.getSize() > 0):
-            return self.buffer_sIdx[-1][1].frame
-        else:
-            return -1
-        
+
     def getSize(self):
         return len(self.buffer_sIdx)
         
-    def append(self,trackerObj):
+    def append(self,timexTrackerList_tuple):
         
         with self._lock:
-            self.buffer_sIdx.append( trackerObj )
+            self.buffer_sIdx.append( timexTrackerList_tuple )
     
     def popleft(self,timexTrackerList_tuple):
         
         with self._lock:
             self.buffer_sIdx.popleft();
-    
-    def getBufferedData(self,lookBackDurationS):
+            
+    def getTrackers(self,lookBackDurationS):
         '''
-        search for last frame before lookBackDur
-        
-        returns a vector of tuples in the form (time,Marker)
-        or
-        returns a vector of tuples in the form (time,Rigid)
+        Use this function to get mocap data from past lookBackDurationS seconds
+
+        Parameters
+        ----------
+        lookBackDurationS : int
+            Seconds of buffered data to return
+    
+        Returns
+        ------
+        A list of tuples of form (frameNum, time,listOfTrackers)
+        Newer values are on the right of the returned deque
         '''
         
         with self._lock:
             
             currentTime = time.time()
+            #currentTime =  OWL.owlGetIntegerv(OWL.OWL_TIMESTAMP)
+        
+            timeSinceSample_fr = [currentTime - m[1] for m in self.buffer_sIdx ]
             
+            #print str(timeSinceSample_fr )
             
-            if( len(self.buffer_sIdx) is 0 ):
-                #print 'BUFFER IS EMPTY'
-                return -1
+            # find the first index smaller than bufferDurationS
+            firstIndex = next(idx for idx, timePast in enumerate(timeSinceSample_fr) if timePast <= lookBackDurationS ) 
             
-            else:
- 
-                timeSinceSample_fr = [currentTime - s[0] for s in self.buffer_sIdx ]
-                #print 'first: ' + str(timeSinceSample_fr[0]) + ' Last: ' + str(timeSinceSample_fr[-1])
-                    
-                if( timeSinceSample_fr[-1] > lookBackDurationS ):
-                    # Buffer has old data - does not cover time within lookBackDurationS 
-                    return -1
-                elif( timeSinceSample_fr[0] <= lookBackDurationS ):
-                    # Return the whole buffer, which all occured within the duration of lookBackDurationS
-                    return self.buffer_sIdx
-                    
-                else:
-                    # find the first index smaller than bufferDurationS
+            #print 'TIME VALUES: = ' + str(timeSinceSample_fr[firstIndex:firstIndex+10])
+            
+            ## Plot the whole buffer GD
+            #def plotYVal():
+                # self.buffer_sIdx
+                #print [sIdx[2][0].get_transform().getPosition()[1] for sIdx in trackerTuples_sIdx]
+                #frame = [ s[2][1].get_marker(mIdx).frame for s in self.buffer_sIdx]
+                #yVal = [ s[2][1].get_marker(mIdx).pos[1] for s in self.buffer_sIdx]
                 
 
-                    firstIndex = next(idx for idx, timePast in enumerate(timeSinceSample_fr) if timePast <= lookBackDurationS ) 
-                    return collections.deque(itertools.islice(self.buffer_sIdx, firstIndex, len(self.buffer_sIdx)))
-            
-#    def getPosition(self,lookBackDurationS):
-#        
-#        data_sIDx = self.getBufferedData(lookBackDurationS)
-#        yData_sIdx = [ s[1].pos[1] for s in data_sIDx]
-#        sIdx_XYZ = [ s[1].pos for s in data_sIDx]
-#        
-#        return yData_sIdx
-            
-#    def getTrackers(self,lookBackDurationS):
-#        '''
-#        Use this function to get mocap data from past lookBackDurationS seconds
-#
-#        Parameters
-#        ----------
-#        lookBackDurationS : int
-#            Seconds of buffered data to return
-#    
-#        Returns
-#        ------
-#        A list of tuples of form (frameNum, time,listOfTrackers)
-#        Newer values are on the right of the returned deque
-#        '''
-#        
-#        with self._lock:
-#            
-#            currentTime = time.time()
-#            #currentTime =  OWL.owlGetIntegerv(OWL.OWL_TIMESTAMP)
-#        
-#            timeSinceSample_fr = [currentTime - m[1] for m in self.buffer_sIdx ]
-#            
-#            #print str(timeSinceSample_fr )
-#            
-#            # find the first index smaller than bufferDurationS
-#            firstIndex = next(idx for idx, timePast in enumerate(timeSinceSample_fr) if timePast <= lookBackDurationS ) 
-#            
-#            #print 'TIME VALUES: = ' + str(timeSinceSample_fr[firstIndex:firstIndex+10])
-#            
-#            ## Plot the whole buffer GD
-#            #def plotYVal():
-#                # self.buffer_sIdx
-#                #print [sIdx[2][0].get_transform().getPosition()[1] for sIdx in trackerTuples_sIdx]
-#                #frame = [ s[2][1].get_marker(mIdx).frame for s in self.buffer_sIdx]
-#                #yVal = [ s[2][1].get_marker(mIdx).pos[1] for s in self.buffer_sIdx]
-#                
-#
-#            ###
-#            # return new values
-#            # Note that you can't slice into deque without using isslice()        
-#            return collections.deque(itertools.islice(self.buffer_sIdx, firstIndex, len(self.buffer_sIdx)))
+            ###
+            # return new values
+            # Note that you can't slice into deque without using isslice()        
+            return collections.deque(itertools.islice(self.buffer_sIdx, firstIndex, len(self.buffer_sIdx)))
         
-#    def getMarkerPosition(self,markerID,trackerID,lookBackDurationS):
-#        '''
-#        Returns a list of tuples of form (timeStamp,XYZ)
-#        '''
-#                
-#        # passes back a list of tuples of form (frameNum, time,listOfTrackers) 
-#        # This list is just a slice of self.buffer_sIdx
-#        trackerTuples_sIdx = self.getTrackers(lookBackDurationS)
-#        
-#        # Get time and list of trackers for each sample
-#        #timeStamp_sIdx = [OWL.owlGetIntegerv(OWL.OWL_TIMESTAMP) - m[0] for m in trackerTuples_sIdx ]\
-#        #timeStamp_sIdx = [time.time() - sample[1] for sample in trackerTuples_sIdx ]
-#        
-#        # GD: Changed 8/11
-#        timeStamp_sIdx = [sample[1] for sample in trackerTuples_sIdx ]
-#        
-#        pos_sIdx = [sample[2][trackerID].get_marker(markerID).pos for sample in trackerTuples_sIdx]
-#        
-#        posBuffer_sIdx = []
-#        
-#        for sIdx in range(len(pos_sIdx)):
-#            posBuffer_sIdx.append((timeStamp_sIdx[sIdx],pos_sIdx[sIdx]))
-#            
-#        return posBuffer_sIdx[::-1]
+    def getMarkerPosition(self,markerID,trackerID,lookBackDurationS):
+        '''
+        Returns a list of tuples of form (timeStamp,XYZ)
+        '''
+                
+        # passes back a list of tuples of form (frameNum, time,listOfTrackers) 
+        # This list is just a slice of self.buffer_sIdx
+        trackerTuples_sIdx = self.getTrackers(lookBackDurationS)
+        
+        # Get time and list of trackers for each sample
+        #timeStamp_sIdx = [OWL.owlGetIntegerv(OWL.OWL_TIMESTAMP) - m[0] for m in trackerTuples_sIdx ]\
+        #timeStamp_sIdx = [time.time() - sample[1] for sample in trackerTuples_sIdx ]
+        
+        # GD: Changed 8/11
+        timeStamp_sIdx = [sample[1] for sample in trackerTuples_sIdx ]
+        
+        pos_sIdx = [sample[2][trackerID].get_marker(markerID).pos for sample in trackerTuples_sIdx]
+        
+        posBuffer_sIdx = []
+        
+        for sIdx in range(len(pos_sIdx)):
+            posBuffer_sIdx.append((timeStamp_sIdx[sIdx],pos_sIdx[sIdx]))
+            
+        return posBuffer_sIdx[::-1]
         
     
     def psPositionToVizardPosition(self, x, y, z): # converts Phasespace pos to vizard cond
@@ -557,44 +505,46 @@ class psBuffer(viz.EventClass):
         
         pass
         
-    def getPos(self, bufferDurationS):
+    def getRigidTransform(self,rigidIdx,lookBackDurationS):
+        '''
+        Returns the pose in Vizard format
+        '''
         
-#        if( self.getSize() > 1 ):
-#            print 'get_MarkerPos: Buffer empty'
-#            return -1
+        # passes back a list of tuples of form (frame, time,listOfTrackers) 
+        # This list is just a slice of self.buffer_sIdx
+        trackerTuples_sIdx = self.getTrackers(lookBackDurationS)
         
-        currentTime = time.time()
-        data_sIDx = self.getBufferedData(bufferDurationS)
+        # Get time and list of trackers for each sample
+        #timeStamp_sIdx = [OWL.owlGetIntegerv(OWL.OWL_TIMESTAMP) - m[0] for m in trackerTuples_sIdx ]\
         
-        if( data_sIDx == -1):
-            print 'get_MarkerPos: Buffer empty'
-            return -1
+        # Time elapsed
+        frame_sIdx = [m[0] for m in trackerTuples_sIdx ]
+        timeStamp_sIdx = [m[1] for m in trackerTuples_sIdx ]
+        
+        trackers_sIdx_tIdx = [m[2] for m in trackerTuples_sIdx ]
+        
+        tformBuffer_sIdx = []
+        
+        # GD: DEBUG!  THIS DATA DOES NOT CHANGE MUCH OVER TIME
+        # print [m[2].getPosition()[1] for m in tformBuffer_sIdx]
+        # Print first rigid body height
+        # print [sIdx[2][0].get_transform().getPosition()[1] for sIdx in trackerTuples_sIdx]
+        
+        # Iterate through each sample.
+        # ...remember that each sample stores a list of trackers
+        for sIdx, sample_tIdx in enumerate(trackers_sIdx_tIdx):
             
-        sIdx_time_XYZ = []
+            ### Keyerror
+            try:
+                tformBuffer_sIdx.append( (frame_sIdx[sIdx],timeStamp_sIdx[sIdx], trackers_sIdx_tIdx[sIdx][rigidIdx].get_transform()))
+            except KeyError, e:
+                # Bad indexing.
+                print 'Rigid index invalid for at least one of the trackers stored in the buffer'
+                return
+
+        return tformBuffer_sIdx
         
-        for s in data_sIDx:
-            sIdx_time_XYZ.append ( ( s[0],s[1].pos) )
-        
-        return sIdx_time_XYZ
-        
-        
-        
-#          if( bufferDurationS ):
-#            
-#            currentTime = time.time()
-#            data_sIDx = self.markerBuffers[markerIdx].getBufferedData(bufferDurationS)
-#            
-#            if( data_sIDx == -1):
-#                print 'get_MarkerPos: Buffer empty'
-#                return -1
-#                
-#            sIdx_time_XYZ = []
-#            
-#            for s in data_sIDx:
-#                sIdx_time_XYZ.append ( ( s[0],s[1].pos) )
-#            
-#            return sIdx_time_XYZ
-#            
+        #return tformBuffer_sIdx[::-1] # reverse the list so that most recent entries are last
         
 class phasespaceInterface(viz.EventClass):
     '''Handle the details of getting mocap data from phasespace.
@@ -696,17 +646,16 @@ class phasespaceInterface(viz.EventClass):
         OWL.owlSetInteger(OWL.OWL_INTERPOLATION, self.owlParamInterp)
         OWL.owlSetInteger(OWL.OWL_TIMESTAMP, OWL.OWL_ENABLE)
         
+        self.markerTrackerBuffer = trackerBuffer()
+        
         self.trackers = []
         
-        self.rigidBuffers = []
         ######################################################################
         ######################################################################
         # Create rigid objects
         
         # for all rigid bodies passed into the init function...
         for rigidIdx in range(len(self.rigidFileNames_ridx)):
-            
-            self.rigidBuffers.append( psBuffer() )
             
             rigidOffsetMM_WorldXYZ  = [0,0,0]
             rigidAvgMarkerList_mIdx   = [0]
@@ -725,27 +674,13 @@ class phasespaceInterface(viz.EventClass):
             # def __init__(self, index, marker_ids, center_marker_ids, localOffest_xyz):
         
         markersFromRigids = self.get_markers()
-    
+        
         if( self.owlParamMarkerCount > len(markersFromRigids) ):
             
             markersToTrack = list( set(range(self.owlParamMarkerCount)) - set(markersFromRigids.keys())  )            
             self.track_points( markersToTrack  )
     
-       ##############
-       # Create buffers
         
-        self.markerBuffers = []
-        
-        for mIdx in range(self.owlParamMarkerCount):
-            self.markerBuffers.append(psBuffer())
-
-        self.rigidBuffers = []
-        
-        for rigidIdx in range(len(self.rigidFileNames_ridx)):
-            
-            self.rigidBuffers.append( psBuffer() )
-            
-
         ###########################################################################
         
         self._updated = viz.tick()
@@ -823,8 +758,7 @@ class phasespaceInterface(viz.EventClass):
 
         #trackerPos_tIdx_XYZ = [0] * (len(markers) + len(rigids))
         
-        
-        for markerNum, marker  in enumerate(markers):
+        for marker in markers:
             if( marker.cond > 0 and marker.cond < self.owlParamMarkerCondThresh ):
               
                 t, o = marker.id >> 12, marker.id & 0xfff
@@ -836,35 +770,42 @@ class phasespaceInterface(viz.EventClass):
                     Marker(pos=vizPos, cond=marker.cond, frame = marker.frame),
                     Marker(pos=(x, y, z), cond=marker.cond, frame = marker.frame))
                 
-#                print 'ID: ' + str(marker.id)
-#                print 't, o: ' + str(t) + ' ' + str(o)
-#                print 'markerNum: ' + str(markerNum)
-                
-                # Append to buffer
-                if( self.markerBuffers[markerNum].getSize() == 0 or 
-                    self.markerBuffers[markerNum].getLastFrame() != marker.frame ): 
-                        
-                        self.markerBuffers[markerNum].append( ( time.time(), Marker(pos=vizPos, cond=marker.cond, frame = marker.frame)) )
-                
         for rigid in rigids:
             if( rigid.cond > 0 and rigid.cond < self.owlParamMarkerCondThresh ):
                 
                 vizPos = psPositionToVizardPosition(*rigid.pose[0:3])
 
-                newPose = Pose(
+                self.trackers[rigid.id].update_pose(Pose(
                     vizPos,
                     quat=psQuatToVizardQuat(*rigid.pose[3:7]),
                     cond=rigid.cond,
-                    frame = rigid.frame)
-                    
-                self.trackers[rigid.id].update_pose(newPose)
-
-                # append to buffer
-                if( self.rigidBuffers[rigid.id].getSize() == 0 or 
-                    self.rigidBuffers[rigid.id].getLastFrame() != frameNum ): 
-
-                    self.rigidBuffers[rigid.id].append( ( time.time(),newPose) )
+                    frame = rigid.frame))
                 
+                #print self.markerTrackerBuffer.buffer_sIdx[-1][0]
+
+                # get frame of last marker
+                try:
+                    lastFrame = mocap.markerTrackerBuffer.buffer_sIdx[-1][2][0]._pose.frame
+                    print 'This - Last: ' + str( rigid.frame) + ' ' + str(lastFrame)
+                except:
+                    pass
+            
+        # Is this fresh data?
+        try:
+            lastRigidFrame = mocap.markerTrackerBuffer.buffer_sIdx[-1][2][0]._pose.frame
+            
+            if( self.markerTrackerBuffer.getSize() == 0 or 
+                lastRigidFrame != frameNum ): 
+                    
+                #self.markerTrackerBuffer.buffer_sIdx[-1][0] != frameNum ): 
+                
+                #print 'FrameNum: ' + str(frameNum) + ' ' + str(self.markerTrackerBuffer.buffer_sIdx[-1].frame)
+                
+                # Yes!  Store it in the buffer.
+                self.markerTrackerBuffer.append((frameNum,time.time(),self.trackers))
+        except:
+            pass
+            
     
     def track_points(self, markers):
         '''Track a set of markers using phasespace.
@@ -915,30 +856,14 @@ class phasespaceInterface(viz.EventClass):
     
     def get_MarkerPos(self,markerIdx,bufferDurationS = None):
 
-        ''' Returns a tuple of (timeStamp, XYZ in vizard format)
+        ''' Returns marker position in vizard format
         buffer duration will return the number of samples S seconds to have been collected over the previous S seconds
         '''
         
         if( bufferDurationS ):
-            return self.markerBuffers[markerIdx].getPos(bufferDurationS)
             
-#            currentTime = time.time()
-#            data_sIDx = self.markerBuffers[markerIdx].getBufferedData(bufferDurationS)
-#            
-#            if( data_sIDx == -1):
-#                print 'get_MarkerPos: Buffer empty'
-#                return -1
-#                
-#            sIdx_time_XYZ = []
-#            
-#            for s in data_sIDx:
-#                sIdx_time_XYZ.append ( ( s[0],s[1].pos) )
-#           
-            
-            
-            
-            #tracker, trackerIdx = self.get_MarkerTracker(markerIdx)
-            #return self.markerTrackerBuffer.getMarkerPosition(markerIdx,trackerIdx,bufferDurationS)
+            tracker, trackerIdx = self.get_MarkerTracker(markerIdx)
+            return self.markerTrackerBuffer.getMarkerPosition(markerIdx,trackerIdx,bufferDurationS)
             
         else:
 
@@ -1101,15 +1026,15 @@ class phasespaceInterface(viz.EventClass):
         
         return self.trackers[self.get_rigidIdx(fileName)]
     
-#    def getRigidTransform(self,fileName,bufferDurationS = None):
-#
-#        rIdx = self.get_rigidIdx(fileName)
-#        
-#        if( bufferDurationS ):
-#            return self.markerTrackerBuffer.getRigidTransform(rIdx,bufferDurationS)
-#        else:
-#            
-#            return self.trackers[rIdx].get_transform()
+    def getRigidTransform(self,fileName,bufferDurationS = None):
+
+        rIdx = self.get_rigidIdx(fileName)
+        
+        if( bufferDurationS ):
+            return self.markerTrackerBuffer.getRigidTransform(rIdx,bufferDurationS)
+        else:
+            
+            return self.trackers[rIdx].get_transform()
 
     def resetRigid( self, fileName ):
         '''Finds the rigid body corresponding to this filename.
@@ -1140,21 +1065,20 @@ class phasespaceInterface(viz.EventClass):
         if(rigidBody):
             rigidBody.save()
         else: print 'Error: Rigid body not initialized'
-        
+    
+    def setBufferLength(self,durationSecs):
+
+        self.markerTrackerBuffer =  trackerBuffer(durationSecs)
+
+        #self.toggleUpdateWithMarker()
+    
     def createOutputFile(self,fileObj):
         
         self.isWriting = True
         self.writer = dataWriter(self,fileObj)
         self.writer.rigidsToBeWritten_rIdx = self.rigidFileNames_ridx
   
-    def setBufferLength(self,durationSecs):
-        
-        for m in self.markerBuffers:
-            m =  psBuffer(durationSecs)
-        
-        for r in self.rigidBuffers:
-            r = psBuffer(durationSecs)
-            
+    
 #    def showMarkers(self):
 #        
 #        
@@ -1286,21 +1210,12 @@ class dataWriter(viz.EventClass):
             # Returns a list of tuples of the form (time,ListOfMarkerXYZ)
             #markerPosBuffer_sIdx_XYZ = [mocap.getMarkerPosition(mID,timeElapsed) for mID in markerID_mIdx]
             timeElapsed = time.time() - self.writeDataFromTime
-            
             markerPosBuffer_sIdx_XYZ = self.mocap.getMarkerPosition(mID,timeElapsed)
-    
-            if( markerPosBuffer_sIdx_XYZ == -1 ):
-                #print 'no data for: ' + rbFilename + ' mID: ' + str(mID) #+ str(rb.marker_ids)
-                # No data for this marker
-                # This skips the rest of this iteration through teh forloop
-                continue
-                
+            
             # Write the line header
             # e.g. '<< rigidVarName-M0_xyz 3 '
-            
-            
             mPositionOutString = mPositionOutString + '<< ' + rbFilename + '-M' + str(mID) +'_XYZ ' + str(len(markerPosBuffer_sIdx_XYZ)) + ' '
-                
+            
             # Iterate through samples (sIdx) and get data
             for m in markerPosBuffer_sIdx_XYZ:
                 
@@ -1318,30 +1233,23 @@ class dataWriter(viz.EventClass):
 
         # rigid body position and quaternion (rotation) data
         timeElapsed = time.time() - self.writeDataFromTime
+        tformBuffer_sIdx = self.mocap.getRigidTransform(rbFilename,timeElapsed)
         
-        rIdx = self.mocap.get_rigidIdx(rbFilename)
+        # Output is of format << Varname NumEntries [A B C] >>
+        # eg << glassesRb_quatXYZW 3 [timeStamp x1 y1 z1 w1] [timeStamp x2 y2 z2 w2] [timeStamp x3 y3 z3 w3] >>
         
-        currentTime = time.time()
-        poseBuffer_sIdx = self.mocap.rigidBuffers[rIdx].getBufferedData(timeElapsed)
-        
-        if( poseBuffer_sIdx == -1):
-            # No data.  
-            return ''
-            
-        #Pose = collections.namedtuple('Pose', 'pos quat cond frame')
-        
-        tformOutString = '<< ' + rbFilename + '_quatXYZW ' + str(len(poseBuffer_sIdx)) + ' '
-        posOutString = '<< ' + rbFilename + '_posXYZ ' + str(len(poseBuffer_sIdx)) + ' '
+        tformOutString = '<< ' + rbFilename + '_quatXYZW ' + str(len(tformBuffer_sIdx)) + ' '
+        posOutString = '<< ' + rbFilename + '_posXYZ ' + str(len(tformBuffer_sIdx)) + ' '
         
         # Build two seperate strings 
-        for m in poseBuffer_sIdx:
+        for m in tformBuffer_sIdx:
         
             timeStamp = m[0]
-            quat_XYZW = m[1].quat
+            quat_XYZW = m[1].getQuat()
             
             tformOutString = tformOutString  + '[ %f %f %f %f %f ] ' % (timeStamp, quat_XYZW[0], quat_XYZW[1], quat_XYZW[2], quat_XYZW[3])
             
-            pos_XYZ = m[1].pos
+            pos_XYZ = m[1].getPosition()
             posOutString = posOutString  + '[ %f %f %f %f ] ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
         
         tformOutString = tformOutString  + '>> '
@@ -1385,7 +1293,7 @@ if __name__ == "__main__":
         
     import vizmatplot
     
-    plotDur = 3
+    plotDur = 100
     
     ###---matplotlib codes---####
     fig = plt.figure()	#instantiate pyplot figure
@@ -1406,33 +1314,41 @@ if __name__ == "__main__":
     
     matplot = vizmatplot.Show(fig)
          
-    def plotRigidPos(rigidName,plotDurS):
-        
-        rIdx = mocap.get_rigidIdx('sh')
+    def plotRigidPos(plotDur):
         
         currentTime = time.time()
-        data_sIDx = mocap.rigidBuffers[rIdx].getBufferedData(plotDurS)
         
-        time_fr = [ -(currentTime -s[0]) for s in data_sIDx]
-        pos_fr = [ s[1].pos[1] for s in data_sIDx]
+        tformBuffer_sIdx = mocap.getRigidTransform('shutter',plotDur )
+        #print str(currentTime) + ' First: ' + str(tformBuffer_sIdx[0][0]) + ' Last: ' + str(tformBuffer_sIdx[-1][0])
         
+        frame_fr = [m[0] for m in tformBuffer_sIdx]
+        time_fr = [-(currentTime - m[1]) for m in tformBuffer_sIdx]
+        pos_fr = [m[2].getPosition()[1] for m in tformBuffer_sIdx]
+        
+        #print pos_fr
+
         line_height.set_data(time_fr,pos_fr)
     
-    def plotMarkerPos(mIdx,plotDurS):
+    def plotMarkerPos(mIdx,plotDur):
         
         currentTime = time.time()
-        data_sIDx = mocap.markerBuffers[mIdx].getBufferedData(plotDurS)
+        # gets tuples in the form of timeStamp, XYZ
+        markerBuffer_sIdx = mocap.getMarkerPosition(mIdx,plotDur )
+    
         
-        time_fr = [ -(currentTime -s[0]) for s in data_sIDx]
-        pos_fr = [ s[1].pos[1] for s in data_sIDx]
+        #frame_fr = [m[0] for m in markerBuffer_sIdx]
+        time_fr = [-(currentTime - m[0]) for m in markerBuffer_sIdx]
+        pos_fr = [m[1][1] for m in markerBuffer_sIdx]
         
+        #print pos_fr
+
         line_height.set_data(time_fr,pos_fr)
         
         
 #        posOutString = ''
         
 #        # Build two seperate strings 
-#        for m in poseBuffer_sIdx:
+#        for m in tformBuffer_sIdx:
 #        
 #            timeStamp = currentTime-m[0]
 #            quat_XYZW = m[1].getQuat()
@@ -1445,16 +1361,7 @@ if __name__ == "__main__":
         
 
     
-    #import vizact
+    import vizact
     # vizact.onkeydown('p',plotRigidPos,plotDur)
-    vizact.ontimer(0.25,plotRigidPos,'shutter',plotDur)
-    #vizact.ontimer(0.05,plotMarkerPos,2,plotDur)
-    
-    mocapDataFile = open('mocapIntDataOut.txt','w+')
-    mocap.createOutputFile(mocapDataFile )
-    
-    def writeData(lookbackDurS):
-        mocap.writer.writeDataFromTime = lookbackDurS
-        
-    vizact.onkeydown('w',writeData,1)
-    
+    vizact.ontimer(0.25,plotRigidPos,plotDur)
+    # vizact.ontimer(0.25,plotMarkerPos,2,plotDur)

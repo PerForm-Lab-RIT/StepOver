@@ -54,6 +54,9 @@ m = 1
 eps = .01
 nan = float('NaN')
 
+
+
+
 # Create a globally accessible soundbank.
 # To access within a member function, 
 # import the global variable with 'global soundbank'
@@ -428,7 +431,7 @@ class Experiment(viz.EventClass):
 		
 		self.maxTrialDuration = config.expCfg['experiment']['maxTrialDuration']
 		
-		# MocapInterace:  My mocap interface buffers data
+		# MocapInterace:  My mocap interface buffers data90
 		# Set buffer length equal to 2x experiment trial duration
 		self.config.mocap.setBufferLength(2*self.maxTrialDuration)
 		
@@ -594,7 +597,7 @@ class Experiment(viz.EventClass):
 					print 'Starting trial ==> Type', self.currentTrial.trialType
 					self.eventFlag.setStatus(1)
 					self.currentTrial.approachingObs = True
-					self.currentTrial.startTime = time.clock()
+					self.currentTrial.startTime = time.time()
 					
 					# Start data collection
 					viz.playSound(soundBank.bubblePop)
@@ -683,7 +686,8 @@ class Experiment(viz.EventClass):
 				mocapSys.resetRigid('right')
 				self.resizeFootBox('right')
 			
-			
+			elif key == 'O':
+				experimentObject.currentTrial.removeObs()
 				
 				
 			if( viz.key.isDown( viz.KEY_CONTROL_L )):
@@ -756,7 +760,7 @@ class Experiment(viz.EventClass):
 		## =======================================================================================================				
 		outputString = '';
 		outputString = outputString + 'frameTime %f ' % (viz.getFrameTime())
-		outputString = outputString + 'sysTime %f ' % (time.clock())
+		outputString = outputString + 'sysTime %f ' % (time.time())
 		
 		outputString = outputString + ' eventFlag %d ' % (self.eventFlag.status)
 			
@@ -825,18 +829,18 @@ class Experiment(viz.EventClass):
 		glassesPos_XYZ = []
 		glassesQUAT_XYZW = []
 		
-		if( self.room.leftFoot ):
+		if( self.room.eyeSphere ):
 			
-			glassesPos_XYZ = self.room.leftFoot.node3D.getPosition()
-			glasses = self.room.leftFoot.node3D.getMatrix()
+			glassesPos_XYZ = self.room.eyeSphere.node3D.getPosition()
+			glasses = self.room.eyeSphere.node3D.getMatrix()
 			glassesQUAT_XYZW = glasses.getQuat()
 			
 		else:
 			glassesPos_XYZ = [None, None, None]
 			glassesQUAT_XYZW = [None, None, None]
 			
-		outputString = outputString + '[ glasses_XYZ %f %f %f ] ' % (leftFootPos_XYZ[0], leftFootPos_XYZ[1], leftFootPos_XYZ[2])
-		outputString = outputString + '[ glassesQUAT_XYZW %f %f %f %f ] ' % ( leftFootQUAT_XYZW[0], leftFootQUAT_XYZW[1], leftFootQUAT_XYZW[2], leftFootQUAT_XYZW[3] )
+		outputString = outputString + '[ glasses_XYZ %f %f %f ] ' % (glassesPos_XYZ[0], glassesPos_XYZ[1], glassesPos_XYZ[2])
+		outputString = outputString + '[ glassesQUAT_XYZW %f %f %f %f ] ' % ( glassesQUAT_XYZW[0], glassesQUAT_XYZW[1], glassesQUAT_XYZW[2], glassesQUAT_XYZW[3] )
 		
 		##########
 		# Mainview
@@ -854,7 +858,7 @@ class Experiment(viz.EventClass):
 		if( self.eventFlag.status == 6 or self.eventFlag.status == 7 ):
 
 			mocap = self.config.mocap
-			#trialDuration = time.clock() - self.currentTrial.startTime
+			#trialDuration = time.time() - self.currentTrial.startTime
 
 			mocap.writer.writeDataFromTime = self.currentTrial.startTime
 		
@@ -1524,11 +1528,15 @@ experimentObject = Experiment(expConfigFileName)
 experimentObject.start()
 
 lf = experimentObject.room.leftFoot
-lr = experimentObject.config.mocap.returnPointerToRigid('left')
+lf.node3D.disable(viz.RENDERING)
 
-lf.node3D.getPosition()
+rf = experimentObject.room.rightFoot
+rf.node3D.disable(viz.RENDERING)
 
-lr.get_position()
+#lr = experimentObject.config.mocap.returnPointerToRigid('left')
+
+#lf.node3D.getPosition()
+#lr.get_position()
 
 #demoMode(experimentObject)
 
@@ -1543,5 +1551,5 @@ def checkObs():
 	print experimentObject.currentTrial.obsObj.collisionBox.physNode.body.getPosition()
 
 #vizshape.addAxes().setScale([0.5, 0.5, 0.5])
-
 #vizshape.addBox(size=(0.05,0.05,0.05))
+# experimentObject.config.mocap.get_MarkerPos(0,0.5)
