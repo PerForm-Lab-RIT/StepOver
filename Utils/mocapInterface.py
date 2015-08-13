@@ -411,7 +411,7 @@ class psBuffer(viz.EventClass):
     '''
     def __init__(self,durationSecs = 10):
         
-        self.bufferLength = 1000000 #durationSecs * OWL.owlGetFloatv(OWL.OWL_FREQUENCY)[0]
+        self.bufferLength = durationSecs * OWL.owlGetFloatv(OWL.OWL_FREQUENCY)[0]
         self.buffer_sIdx = collections.deque(maxlen=self.bufferLength) # a FIFO deque of tuples (time,[marker tracker list])
         
         self._lock = threading.Lock()
@@ -426,10 +426,10 @@ class psBuffer(viz.EventClass):
     def getSize(self):
         return len(self.buffer_sIdx)
         
-    def append(self,trackerObj):
+    def append(self,data):
         
         with self._lock:
-            self.buffer_sIdx.append( trackerObj )
+            self.buffer_sIdx.append( data )
     
     def popleft(self,timexTrackerList_tuple):
         
@@ -469,93 +469,18 @@ class psBuffer(viz.EventClass):
                 else:
                     # find the first index smaller than bufferDurationS
                 
-
                     firstIndex = next(idx for idx, timePast in enumerate(timeSinceSample_fr) if timePast <= lookBackDurationS ) 
                     return collections.deque(itertools.islice(self.buffer_sIdx, firstIndex, len(self.buffer_sIdx)))
             
-#    def getPosition(self,lookBackDurationS):
 #        
-#        data_sIDx = self.getBufferedData(lookBackDurationS)
-#        yData_sIdx = [ s[1].pos[1] for s in data_sIDx]
-#        sIdx_XYZ = [ s[1].pos for s in data_sIDx]
-#        
-#        return yData_sIdx
-            
-#    def getTrackers(self,lookBackDurationS):
-#        '''
-#        Use this function to get mocap data from past lookBackDurationS seconds
-#
-#        Parameters
-#        ----------
-#        lookBackDurationS : int
-#            Seconds of buffered data to return
 #    
-#        Returns
-#        ------
-#        A list of tuples of form (frameNum, time,listOfTrackers)
-#        Newer values are on the right of the returned deque
-#        '''
+#    def psPositionToVizardPosition(self, x, y, z): # converts Phasespace pos to vizard cond
+#        return -sz * z + oz, sy * y + oy, -sx * x + ox
 #        
-#        with self._lock:
-#            
-#            currentTime = time.time()
-#            #currentTime =  OWL.owlGetIntegerv(OWL.OWL_TIMESTAMP)
+#    def psQuatToVizardQuat(self, w, a, b, c): # converts Phasespace quat to vizard quat
+#        return -c, b, -a, -w
 #        
-#            timeSinceSample_fr = [currentTime - m[1] for m in self.buffer_sIdx ]
-#            
-#            #print str(timeSinceSample_fr )
-#            
-#            # find the first index smaller than bufferDurationS
-#            firstIndex = next(idx for idx, timePast in enumerate(timeSinceSample_fr) if timePast <= lookBackDurationS ) 
-#            
-#            #print 'TIME VALUES: = ' + str(timeSinceSample_fr[firstIndex:firstIndex+10])
-#            
-#            ## Plot the whole buffer GD
-#            #def plotYVal():
-#                # self.buffer_sIdx
-#                #print [sIdx[2][0].get_transform().getPosition()[1] for sIdx in trackerTuples_sIdx]
-#                #frame = [ s[2][1].get_marker(mIdx).frame for s in self.buffer_sIdx]
-#                #yVal = [ s[2][1].get_marker(mIdx).pos[1] for s in self.buffer_sIdx]
-#                
-#
-#            ###
-#            # return new values
-#            # Note that you can't slice into deque without using isslice()        
-#            return collections.deque(itertools.islice(self.buffer_sIdx, firstIndex, len(self.buffer_sIdx)))
-        
-#    def getMarkerPosition(self,markerID,trackerID,lookBackDurationS):
-#        '''
-#        Returns a list of tuples of form (timeStamp,XYZ)
-#        '''
-#                
-#        # passes back a list of tuples of form (frameNum, time,listOfTrackers) 
-#        # This list is just a slice of self.buffer_sIdx
-#        trackerTuples_sIdx = self.getTrackers(lookBackDurationS)
-#        
-#        # Get time and list of trackers for each sample
-#        #timeStamp_sIdx = [OWL.owlGetIntegerv(OWL.OWL_TIMESTAMP) - m[0] for m in trackerTuples_sIdx ]\
-#        #timeStamp_sIdx = [time.time() - sample[1] for sample in trackerTuples_sIdx ]
-#        
-#        # GD: Changed 8/11
-#        timeStamp_sIdx = [sample[1] for sample in trackerTuples_sIdx ]
-#        
-#        pos_sIdx = [sample[2][trackerID].get_marker(markerID).pos for sample in trackerTuples_sIdx]
-#        
-#        posBuffer_sIdx = []
-#        
-#        for sIdx in range(len(pos_sIdx)):
-#            posBuffer_sIdx.append((timeStamp_sIdx[sIdx],pos_sIdx[sIdx]))
-#            
-#        return posBuffer_sIdx[::-1]
-        
-    
-    def psPositionToVizardPosition(self, x, y, z): # converts Phasespace pos to vizard cond
-        return -sz * z + oz, sy * y + oy, -sx * x + ox
-        
-    def psQuatToVizardQuat(self, w, a, b, c): # converts Phasespace quat to vizard quat
-        return -c, b, -a, -w
-        
-        pass
+#        pass
         
     def getPos(self, bufferDurationS):
         
@@ -578,23 +503,6 @@ class psBuffer(viz.EventClass):
         return sIdx_time_XYZ
         
         
-        
-#          if( bufferDurationS ):
-#            
-#            currentTime = time.time()
-#            data_sIDx = self.markerBuffers[markerIdx].getBufferedData(bufferDurationS)
-#            
-#            if( data_sIDx == -1):
-#                print 'get_MarkerPos: Buffer empty'
-#                return -1
-#                
-#            sIdx_time_XYZ = []
-#            
-#            for s in data_sIDx:
-#                sIdx_time_XYZ.append ( ( s[0],s[1].pos) )
-#            
-#            return sIdx_time_XYZ
-#            
         
 class phasespaceInterface(viz.EventClass):
     '''Handle the details of getting mocap data from phasespace.
@@ -648,7 +556,7 @@ class phasespaceInterface(viz.EventClass):
             self.owlParamMarkerCondThresh = 50
             self.owlParamPostProcess = 0
             
-            self.owlParamModeNum = 1
+            self.owlParamModeNum = 3
             print '**** Using default MODE #' + str(self.owlParamModeNum) + ' ****'
             
         else:
@@ -830,6 +738,7 @@ class phasespaceInterface(viz.EventClass):
                 t, o = marker.id >> 12, marker.id & 0xfff
                 x, y, z = marker.x, marker.y, marker.z
                 
+                
                 vizPos = psPositionToVizardPosition(x, y, z)
                 
                 self.trackers[t].update_markers(o,
@@ -850,6 +759,8 @@ class phasespaceInterface(viz.EventClass):
             if( rigid.cond > 0 and rigid.cond < self.owlParamMarkerCondThresh ):
                 
                 vizPos = psPositionToVizardPosition(*rigid.pose[0:3])
+                #print vizPos 
+                #vizPos = psPositionToVizardPosition(*rigid.pose[0:2])
 
                 newPose = Pose(
                     vizPos,
@@ -1447,7 +1358,7 @@ if __name__ == "__main__":
     
     #import vizact
     # vizact.onkeydown('p',plotRigidPos,plotDur)
-    vizact.ontimer(0.25,plotRigidPos,'shutter',plotDur)
+    #vizact.ontimer(0.25,plotRigidPos,'shutter',plotDur)
     #vizact.ontimer(0.05,plotMarkerPos,2,plotDur)
     
     mocapDataFile = open('mocapIntDataOut.txt','w+')
