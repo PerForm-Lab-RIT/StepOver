@@ -773,10 +773,22 @@ class Experiment(viz.EventClass):
 			## Obstacle Height & Location 
 			## =======================================================================================================
 			outputString = outputString + '[ obstacle_XYZ %f %f %f ] ' % (self.currentTrial.obsLoc_XYZ[0],self.currentTrial.obsLoc_XYZ[1],self.currentTrial.obsLoc_XYZ[2])
+			
 			outputString = outputString + ' obstacleHeight %f ' % (self.currentTrial.obsHeightM)
+			
 			outputString = outputString + ' isWalkingDownAxis %d ' % (self.room.isWalkingDownAxis)
 			outputString = outputString + ' trialNum %d ' % (self.trialNumber)
-		
+			
+			outputString = outputString + ' standingBoxOffset_negZ %d ' % (self.room.standingBoxOffset_negZ)
+			outputString = outputString + ' standingBoxOffset_posZ %d ' % (self.room.standingBoxOffset_posZ)
+			
+			leftFoot_LWH = self.room.leftFoot.node3D.getBoundingBox().getSize()
+			outputString = outputString + ' [ leftFoot_LWH %f %f %f ] ' % (leftFoot_LWH[2], leftFoot_LWH[0], leftFoot_LWH[1])
+			
+			rightFoot_LWH = self.room.rightFoot.node3D.getBoundingBox().getSize()
+			outputString = outputString + ' [ rightFoot_LWH %f %f %f ] ' % (rightFoot_LWH[2], rightFoot_LWH[0], rightFoot_LWH[1])
+			
+			
 		if( self.eventFlag.status == 4 or self.eventFlag.status == 5 ):		
 
 			collisionPosLocal_XYZ = self.currentTrial.collisionLocOnObs_XYZ
