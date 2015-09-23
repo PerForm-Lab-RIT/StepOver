@@ -8,7 +8,7 @@ Things required for transition to PandA Lab setup:
 - buy a wiimote, or goto <experiment>.registerWiimoteActions and associate the callbacks with keyboard presses
 - 
 
-
+90
 """
 
 viz.res.addPath('resources')
@@ -75,6 +75,7 @@ class soundBank():
 		self.cowbell =  '/Resources/cowbell.wav'
 		self.beep =  '/Resources/beep.wav'
 		self.gong = '/Resources/gong.wav'
+		self.beep_f = '/Resourcs/beep_Spike.wav'
 		
 		viz.playSound(self.gong,viz.SOUND_PRELOAD)
 		viz.playSound(self.beep,viz.SOUND_PRELOAD)
@@ -83,6 +84,7 @@ class soundBank():
 		viz.playSound(self.bubblePop,viz.SOUND_PRELOAD)
 		viz.playSound(self.highDrip,viz.SOUND_PRELOAD)
 		viz.playSound(self.cowbell,viz.SOUND_PRELOAD)
+		viz.playSound(self.beep,viz.SOUND_PRELOAD)
 
 soundBank = soundBank()
 
@@ -600,7 +602,7 @@ class Experiment(viz.EventClass):
 					self.currentTrial.startTime = time.time()
 					
 					# Start data collection
-					viz.playSound(soundBank.bubblePop)
+					viz.playSound(soundBank.beep_f)
 					
 					if( type(self.currentTrial.goSignalTimerObj) is not list ):			
 						self.currentTrial.goSignalTimerObj.remove()
@@ -924,7 +926,7 @@ class Experiment(viz.EventClass):
 			self.trialNumber += 1
 			
 			## Play sound
-			viz.playSound(soundBank.cowbell)
+			viz.playSound(soundBank.beep_f)
 			## Remove obstacle
 			#print 'End of Trial :> Attempting to remove Obs'
 			self.currentTrial.removeObs()
@@ -1526,7 +1528,8 @@ def demoMode(experimentObject):
 	
 	
 ################################################################################################################   
-################################################################################################################
+###################################################################90
+#############################################
 ################################################################################################################
 ##  Here's where the magic happens!
 
@@ -1540,10 +1543,10 @@ experimentObject = Experiment(expConfigFileName)
 experimentObject.start()
 
 lf = experimentObject.room.leftFoot
-lf.node3D.disable(viz.RENDERING)
+#lf.node3D.disable(viz.RENDERING)
 
 rf = experimentObject.room.rightFoot
-rf.node3D.disable(viz.RENDERING)
+#rf.node3D.disable(viz.RENDERING)
 
 #lr = experimentObject.config.mocap.returnPointerToRigid('left')
 
