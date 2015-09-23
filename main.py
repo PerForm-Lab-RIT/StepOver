@@ -433,9 +433,6 @@ class Experiment(viz.EventClass):
 		
 		self.maxTrialDuration = config.expCfg['experiment']['maxTrialDuration']
 		
-		# MocapInterace:  My mocap interface buffers data90
-		# Set buffer length equal to 2x experiment trial duration
-		self.config.mocap.setBufferLength(2*self.maxTrialDuration)
 		
 		if( config.wiimote ):
 			self.registerWiimoteActions()
@@ -497,16 +494,14 @@ class Experiment(viz.EventClass):
 		expMetaDataStr = self.getExperimentMetaData()
 		self.expDataFile.write(expMetaDataStr + '\n')
 		
-		# MocapInterface handles writing mocap data in a seperate thread.  It's comp. intensive!
-		self.mocapDataFile = open(dataOutPutDir + 'mocap_data-' + dateTimeStr + '.txt','w+')
-		self.config.mocap.createOutputFile(self.mocapDataFile)
+		# MocapInterface handles writing mocap data in a seperate thread. 
+		self.config.mocap.startLogging('F:\Data\Stepover')
 		
 		from shutil import copyfile
 		
 		# Copy config files
 		copyfile('.\\' + expConfigFileName, dataOutPutDir+expConfigFileName ) # exp config
 		copyfile('.\\expCfgSpec.ini', dataOutPutDir + 'expCfgSpec.ini' )# exp config spec1
-		
 		
 		copyfile('.\\'+os.environ['COMPUTERNAME'] + '.cfg', dataOutPutDir+os.environ['COMPUTERNAME'] + '.cfg')# system config 
 		copyfile('.\\sysCfgSpec.ini', dataOutPutDir+ 'sysCfgSpec.ini') # system config spec
