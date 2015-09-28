@@ -495,7 +495,8 @@ class Experiment(viz.EventClass):
 		self.expDataFile.write(expMetaDataStr + '\n')
 		
 		# MocapInterface handles writing mocap data in a seperate thread. 
-		self.config.mocap.startLogging('F:\Data\Stepover')
+		#self.config.mocap.startLogging('F:\Data\Stepover')
+		self.config.mocap.createLog(dataOutPutDir)
 		
 		from shutil import copyfile
 		
@@ -506,7 +507,6 @@ class Experiment(viz.EventClass):
 		copyfile('.\\'+os.environ['COMPUTERNAME'] + '.cfg', dataOutPutDir+os.environ['COMPUTERNAME'] + '.cfg')# system config 
 		copyfile('.\\sysCfgSpec.ini', dataOutPutDir+ 'sysCfgSpec.ini') # system config spec
 		
-		
 		##############################################################
 		## Event flag
 		
@@ -516,8 +516,6 @@ class Experiment(viz.EventClass):
 		# It can be configured to signify the start of a trial, the bounce of a ball, or whatever
 		
 		self.eventFlag = eventFlag()
-		
-		
 		
 	def _timerCallback(self,timerID):
 
@@ -868,8 +866,6 @@ class Experiment(viz.EventClass):
 
 			mocap = self.config.mocap
 			#trialDuration = time.time() - self.currentTrial.startTime
-
-			mocap.writer.writeDataFromTime = self.currentTrial.startTime
 		
 		return outputString #%f %d' % (viz.getFrameTime(), self.inCalibrateMode)
 		
@@ -937,6 +933,8 @@ class Experiment(viz.EventClass):
 			if( type(self.currentTrial.trialTimeoutTimerObj) is not list ):			
 				self.currentTrial.trialTimeoutTimerObj.remove()
 			
+			# Stop loggging mocap data
+			self.config.mocap.stopLogging()
 			
 		if( self.trialNumber == endOfTrialList ):
 			
@@ -1031,7 +1029,12 @@ class Experiment(viz.EventClass):
 		# Change the Obstacle Color to Green as a visual feedback for the subject
 		if( self.currentTrial.objIsVirtual):
 			self.currentTrial.obsObj.setColor(viz.WHITE)
-				
+		
+		# Start logging data
+		self.config.mocap.writeStringToLog('Trial: ' + str(self.trialNumber+1))
+		self.config.mocap.startLogging()
+		
+		
 	def inputLegLength(self):
 		
 		#print('SETTING LEG LENGTH TO 100!')

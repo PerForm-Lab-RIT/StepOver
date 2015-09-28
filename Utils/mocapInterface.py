@@ -539,8 +539,8 @@ class phasespaceInterface(viz.EventClass):
         self.loggingData = False
         self.outFilePath = []
         
-        self.logger = []
-        self.fhandler = []
+        self.logger = False
+        self.fhandler = False
         
         ###
         
@@ -1059,34 +1059,23 @@ class phasespaceInterface(viz.EventClass):
             rigidBody.save()
         else: print 'Error: Rigid body not initialized'
     
-    
-    def startLogging(self,outFilePath):
-        
-        self.outFilePath = outFilePath
-        self.createLog(outFilePath)
-        self.loggingData = True
-
-    def stopLogging(self):
-        # shut 'er down
-        self.logger.removeHandler(self.fhandler)
-        self.fhandler.flush()
-        self.fhandler.close()
-        
     def createLog(self,outFileDir):
         
+        self.outFilePath = outFileDir
         self.logger = logging.getLogger()
-        import datetime
-        now = datetime.datetime.now()
+    
+        fhandlerPath = outFileDir #+ '\\' + dateTimeStr + '\\'
         
-        dateTimeStr = str(now.year) + '-' + str(now.month) + '-' + str(now.day) + '-' + str(now.hour) + '-' + str(now.minute)
         import os
-        
-        fhandlerPath = outFileDir + '\\' + dateTimeStr + '\\'
-
         try:            
             os.stat(fhandlerPath)
         except:            
+    
             os.mkdir(fhandlerPath)    
+        
+        import datetime
+        now = datetime.datetime.now()
+        dateTimeStr = str(now.year) + '-' + str(now.month) + '-' + str(now.day) + '-' + str(now.hour) + '-' + str(now.minute)
         
         fhandlerFileLoc = fhandlerPath +'mocap_data-' + dateTimeStr + '.log'
             
@@ -1095,6 +1084,33 @@ class phasespaceInterface(viz.EventClass):
         self.fhandler.setFormatter(formatter)
         self.logger.addHandler(self.fhandler)
         self.logger.setLevel(logging.DEBUG)
+        
+    def startLogging(self):
+        
+        if( self.logger):
+            self.loggingData = True
+        else:
+            print 'Must create Logger using mocap.createLog'
+
+    def stopLogging(self):
+        
+        self.loggingData = False
+        
+    def removeLog(self):
+        
+        if( self.logger):
+            # shut 'er down
+            self.logger.removeHandler(self.fhandler)
+        
+        if( self.fhandler):
+            self.fhandler.flush()
+            self.fhandler.close()
+
+    
+    def writeStringToLog(self,stringOut):
+        
+        if( self.logger ):
+            logging.info(str(stringOut))
         
     def logData(self,rb):
         # rigid body marker data
@@ -1120,7 +1136,7 @@ class phasespaceInterface(viz.EventClass):
             timeStamp = time.time()
             pos_XYZ = m.pos
                 
-            mPositionOutString = mPositionOutString + '<< ' + rb.filename + '-M' + str(mID) +'_XYZ ' + ' ''[ %f %f %f %f ] >> ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
+            mPositionOutString = mPositionOutString + '<< ' + rb.filename + '-M' + str(rb.marker_ids[mID]) +'_XYZ ' + ' ''[ %f %f %f %f ] >> ' % (timeStamp, pos_XYZ[0], pos_XYZ[1], pos_XYZ[2])
         
         logging.info(str(tformOutString + posOutString + mPositionOutString))
         
