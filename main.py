@@ -48,9 +48,34 @@ import vizconnect
 
 expConfigFileName = 'exampleExpConfig.cfg'
 
-networkClients = 'performVR'.upper()
-receiver.port(5000) # Send data over port 5000
 
+#############################
+useNetwork = True
+
+if( useNetwork ):
+	networkClient = 'performVR'.upper()
+	viz.net.addPort(5000) # Send data over port 5000
+
+def appendTrialToEndOfBlock(e):
+	
+	experimentObject.appendTrialToEndOfBlock()
+	
+	import winsound
+	Freq = 1500 # Set Frequency To 2500 Hertz
+	Dur = 100 # Set Duration To 1000 ms == 1 second
+	winsound.Beep(Freq,Dur)
+	
+def onNetwork(netPacket):
+	
+	print 'Received network message'
+
+	if netPacket.sender.upper() == networkClient:
+		experimentObject.eventFlag.setStatus(8)
+		netPacket.action(netPacket)
+
+viz.callback(viz.NETWORK_EVENT, onNetwork)
+
+#############################		
 
 ft = .3048
 inch = 0.0254
@@ -466,7 +491,6 @@ class Experiment(viz.EventClass):
 		self.callback(viz.KEYDOWN_EVENT,  self.onKeyDown)
 		self.callback(viz.KEYUP_EVENT, self.onKeyUp)
 		self.callback( viz.TIMER_EVENT,self._timerCallback )
-		self.callback(viz.NETWORK_EVENT, onNetwork)
 		
 		self.perFrameTimerID = viz.getEventID('perFrameTimerID') # Generates a unique ID.
 		self.starttimer( self.perFrameTimerID, viz.FASTEST_EXPIRATION, viz.FOREVER)
@@ -1207,13 +1231,7 @@ class Experiment(viz.EventClass):
 		print 'Starting block: ' + str(self.blockNumber) + ' Trial: ' + str(self.trialNumber)
 		self.currentTrial = self.blocks_bl[self.blockNumber].trials_tr[self.trialNumber]
 	
-	def onNetwork(self,netPacket):
-		
-		print 'Received network message'
-	
-		if netPacket.sender.upper() == sender:
-			self.eventFlag.setStatus(8)
-			netPacket.action(e)
+
 
 	def appendTrialToEndOfBlock(self):
 		
@@ -1585,3 +1603,4 @@ def checkObs():
 #vizshape.addAxes().setScale([0.5, 0.5, 0.5])
 #vizshape.addBox(size=(0.05,0.05,0.05))
 # experimentObject.config.mocap.get_MarkerPos(0,0.5)
+
