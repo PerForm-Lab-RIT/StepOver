@@ -48,6 +48,10 @@ import vizconnect
 
 expConfigFileName = 'exampleExpConfig.cfg'
 
+networkClients = 'performVR'.upper()
+receiver.port(5000) # Send data over port 5000
+
+
 ft = .3048
 inch = 0.0254
 m = 1
@@ -462,7 +466,7 @@ class Experiment(viz.EventClass):
 		self.callback(viz.KEYDOWN_EVENT,  self.onKeyDown)
 		self.callback(viz.KEYUP_EVENT, self.onKeyUp)
 		self.callback( viz.TIMER_EVENT,self._timerCallback )
-	
+		self.callback(viz.NETWORK_EVENT, onNetwork)
 		
 		self.perFrameTimerID = viz.getEventID('perFrameTimerID') # Generates a unique ID.
 		self.starttimer( self.perFrameTimerID, viz.FASTEST_EXPIRATION, viz.FOREVER)
@@ -1202,6 +1206,20 @@ class Experiment(viz.EventClass):
 	
 		print 'Starting block: ' + str(self.blockNumber) + ' Trial: ' + str(self.trialNumber)
 		self.currentTrial = self.blocks_bl[self.blockNumber].trials_tr[self.trialNumber]
+	
+	def onNetwork(self,netPacket):
+		
+		print 'Received network message'
+	
+		if netPacket.sender.upper() == sender:
+			self.eventFlag.setStatus(8)
+			netPacket.action(e)
+
+	def appendTrialToEndOfBlock(self):
+		
+		print 'Appending current trial onto the end of the block list.'
+		self.blocks_bl[self.blockNumber].trials_tr.append(self.currentTrial)
+		
 		
 class eventFlag(viz.EventClass):
 	
@@ -1217,6 +1235,7 @@ class eventFlag(viz.EventClass):
 		# 5 Left foot collides with obstacle
 		# 6 Trial end
 		# 7 Block end
+		# 8 Network signalled trial redo
 		
 		viz.EventClass.__init__(self)
 		
