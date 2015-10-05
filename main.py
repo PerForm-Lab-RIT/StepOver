@@ -116,7 +116,9 @@ class soundBank():
 		self.beep =  '/Resources/beep.wav'
 		self.gong = '/Resources/gong.wav'
 		self.beep_f = '/Resourcs/beep_Spike.wav'
+		self.go = '/Resourcs/go.wav'
 		
+		viz.playSound(self.go,viz.SOUND_PRELOAD)
 		viz.playSound(self.gong,viz.SOUND_PRELOAD)
 		viz.playSound(self.beep,viz.SOUND_PRELOAD)
 		viz.playSound(self.bounce,viz.SOUND_PRELOAD)
@@ -560,11 +562,26 @@ class Experiment(viz.EventClass):
 
 		mainViewPos_XYZ = viz.MainView.getPosition()
 		
-		## This is all the per-frame timer stuff
-		if( self.currentTrial.approachingObs == True and
-			mainViewPos_XYZ[0] > self.trialEndPosition ):
-			print 'Passed distance threshold.  Ending trial'
-			self.endTrial()
+#		## This is all the per-frame timer stuff
+#		if( self.currentTrial.approachingObs == True and
+#			mainViewPos_XYZ[0] > self.trialEndPosition ):
+#			print 'Passed distance threshold.  Ending trial'
+#			self.endTrial()
+		
+		# If the subject is approaching the invisible obstalce
+		if( self.currentTrial.approachingObs is True and
+			self.currentTrial.obsIsVisible is False):
+
+			boxPos_XYZ = self.room.standingBox.getPosition()
+			subPos_XYZ = viz.MainView.getPosition()
+			subDistFromStartBox = abs(subPos_XYZ[2] - boxPos_XYZ[2])
+			
+			# Check if their distance is above threshold
+			if( subDistFromStartBox  > self.config.expCfg['experiment']['showObsAtDistOf'] ):
+				
+				# Present the obstacle
+				self.currentTrial.obsObj.node3D.enable(viz.RENDERING)
+				self.currentTrial.obsIsVisible = True
 				
 		######################################################################
 		## Are the feet in the starting position?
@@ -588,8 +605,7 @@ class Experiment(viz.EventClass):
 				
 				# Yes, the head is inside the standing box
 				self.currentTrial.waitingForGo = True
-				# Present the obstacle
-				self.currentTrial.placeObs(self.room)
+				
 				
 				# Metronome has been deactivated
 				#if( type(self.currentTrial.metronomeTimerObj) is list ):
@@ -633,7 +649,9 @@ class Experiment(viz.EventClass):
 					self.currentTrial.approachingObs = True
 					self.currentTrial.startTime = time.time()
 
-					#absTrialNum = self.trialNumber
+					# Present the obstacle
+					self.currentTrial.placeObs(self.room)
+					self.currentTrial.obsObj.node3D.disable(viz.RENDERING)
 					
 					#if( self.blockNumber > 0 ):
 						# Num trials from previous blocks
@@ -651,6 +669,9 @@ class Experiment(viz.EventClass):
 					
 					vizact.ontimer2(self.maxTrialDuration, 0,self.endTrial)
 				
+				
+				
+				
 	def _checkForCollisions(self):
 		
 		thePhysEnv = self.room.physEnv;
@@ -666,6 +687,7 @@ class Experiment(viz.EventClass):
 		rightFoot = self.room.rightFoot
 		
 		if( self.currentTrial.approachingObs == True ):
+			
 			obstacle = self.currentTrial.obsObj.collisionBox
 				
 			for idx in range(len(thePhysEnv.collisionList_idx_physNodes)):
@@ -997,7 +1019,7 @@ class Experiment(viz.EventClass):
 			
 			self.blockNumber += 1
 			self.trialNumber = 0
-			self.absTrialNumber += 1
+			
 			
 			# End experiment
 			if( self.blockNumber == len(self.blocks_bl) ):
@@ -1077,10 +1099,10 @@ class Experiment(viz.EventClass):
 		if( type(self.currentTrial.metronomeTimerObj) is not list ):			
 			self.currentTrial.metronomeTimerObj.remove()
 
-		viz.playSound(soundBank.beep)
+		viz.playSound(soundBank.go)
 		
 		# Change the Obstacle Color to Green as a visual feedback for the subject
-		if( self.currentTrial.objIsVirtual):
+		if( self.currentTrial.objIsVirtual and self.currentTrial.obsObj != -1 ):
 			self.currentTrial.obsObj.setColor(viz.WHITE)
 		
 		
@@ -1254,9 +1276,14 @@ class Experiment(viz.EventClass):
 	
 	def appendTrialToEndOfBlock(self):
 		
-		print 'Appending current trial onto the end of the block list.'
-		self.blocks_bl[self.blockNumber].trials_tr.append(self.currentTrial)
-		self.blocks_bl[self.blockNumber].numTrials = len(self.blocks_bl[self.blockNumber].trials_tr)
+		print 'Appending current trial onto the end of the block list.'			
+		currentBlock = self.blocks_bl[self.blockNumber]
+		
+		trialObj = trial(self.config,currentBlock.trialTypeList_tr[self.trialNumber], self.room)
+		currentBlock.trialTypeList_tr.append(self.currentTrial.trialType)
+		##Add the body to the list
+		currentBlock.trials_tr.append(trialObj)
+		self.blocks_bl[self.blockNumber].numTrials = len(currentBlock.trials_tr)
 		self.eventFlag.setStatus(8)
 		
 #	def removeTrialFromEndOfBlock(self):
@@ -1393,6 +1420,7 @@ class trial(viz.EventClass):
 		self.goSignalGiven = False 		
 		self.approachingObs = False
 		self.objIsVirtual = int(config.expCfg['trialTypes'][self.trialType]['objIsVirtual'])
+		self.obsIsVisible = False
 		
 		self.goSignalTimerObj = []
 		self.metronomeTimerObj = []
@@ -1630,3 +1658,4 @@ def checkObs():
 #vizshape.addBox(size=(0.05,0.05,0.05))
 # experimentObject.config.mocap.get_MarkerPos(0,0.5)
 
+viz.MainWindow.setStereoSwap(viz.TOGGLE)
