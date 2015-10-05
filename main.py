@@ -56,15 +56,26 @@ if( useNetwork ):
 	networkClient = 'performVR'.upper()
 	viz.net.addPort(5000) # Send data over port 5000
 
-def appendTrialToEndOfBlock(e):
-	
-	experimentObject.appendTrialToEndOfBlock()
-	
-	import winsound
-	Freq = 1500 # Set Frequency To 2500 Hertz
-	Dur = 100 # Set Duration To 1000 ms == 1 second
-	winsound.Beep(Freq,Dur)
-	
+#def appendTrialToEndOfBlock(e):
+#	
+#	experimentObject.appendTrialToEndOfBlock()
+#	
+#	import winsound
+#	Freq = 1500 # Set Frequency To 2500 Hertz
+#	Dur = 100 # Set Duration To 1000 ms == 1 second
+#	winsound.Beep(Freq,Dur)
+#	
+
+class NumberCount():
+	def __init__(self):
+		pass
+
+	def startPresentingNumbers(self):
+		pass
+		
+	def stopPresentingNumbers(self):
+		pass
+			
 def onNetwork(netPacket):
 	
 	print 'Received network message'
@@ -441,10 +452,10 @@ class Experiment(viz.EventClass):
 		# Build block and trial list
 		
 		self.blockNumber = 0;
-		self.trialNumber = 0;
+		self.trialNumber = 0; # trial number within block
+		self.absTrialNumber = 0; # trial number within experiment
 		self.expInProgress = True;
 		
-		self.totalTrialNumber = 0;
 		self.blocks_bl = []
 		
 		self.room.offsetDistance = float(config.expCfg['room']['minObstacleDistance'])
@@ -621,19 +632,24 @@ class Experiment(viz.EventClass):
 					self.eventFlag.setStatus(1)
 					self.currentTrial.approachingObs = True
 					self.currentTrial.startTime = time.time()
+
+					#absTrialNum = self.trialNumber
 					
+					#if( self.blockNumber > 0 ):
+						# Num trials from previous blocks
+						#absTrialNum = [absTrialNum + sum(self.blocks_bl[bIdx].numTrials) for block in self.blocks_bl[0:(self.blockNumber-1)]]
+											
+					# Start logging data
+					self.config.mocap.writeStringToLog('Start: ' + str(self.absTrialNumber+1) )
+					self.config.mocap.startLogging()
+		
 					# Start data collection
 					viz.playSound(soundBank.beep_f)
 					
 					if( type(self.currentTrial.goSignalTimerObj) is not list ):			
 						self.currentTrial.goSignalTimerObj.remove()
-						
 					
 					vizact.ontimer2(self.maxTrialDuration, 0,self.endTrial)
-					
-										
-					#self.maxTrialDurationObj
-					#self.trialTimeoutTimerID
 				
 	def _checkForCollisions(self):
 		
@@ -651,7 +667,6 @@ class Experiment(viz.EventClass):
 		
 		if( self.currentTrial.approachingObs == True ):
 			obstacle = self.currentTrial.obsObj.collisionBox
-				
 				
 			for idx in range(len(thePhysEnv.collisionList_idx_physNodes)):
 				
@@ -711,7 +726,9 @@ class Experiment(viz.EventClass):
 			
 			elif key == 'O':
 				experimentObject.currentTrial.removeObs()
-				
+			
+			elif key == 'A':
+				self.appendTrialToEndOfBlock()
 				
 			if( viz.key.isDown( viz.KEY_CONTROL_L )):
 				
@@ -724,7 +741,12 @@ class Experiment(viz.EventClass):
 					mocapSys.saveRigid('left') # MOCAP
 				elif key == 'r':
 					mocapSys.saveRigid('right') # MOCAP
+			
+			
 				
+			
+			
+			
 	def onKeyUp(self,key):
 		
 		if( key == 'v'):
@@ -924,16 +946,21 @@ class Experiment(viz.EventClass):
 		
 		self.eventFlag.setStatus(6,True)
 		
-		endOfTrialList = len(self.blocks_bl[self.blockNumber].trials_tr)
+		numTrialsInBlock = len(self.blocks_bl[self.blockNumber].trials_tr)
 		
-		self.toggleWalkingDirection();	
+		# self.toggleWalkingDirection();	
 		
-		#self.currentTrial.approachingObs = False
+		# Stop loggging mocap data
+		self.config.mocap.writeStringToLog('End: ' + str(self.absTrialNumber+1) )
+		self.config.mocap.stopLogging()
 		
+		## Play sound
+		viz.playSound(soundBank.beep_f)
+			
 		#print 'Ending block: ' + str(self.blockNumber) + 'trial: ' + str(self.trialNumber)
 		
-		# If it is the last trial...
-		if( self.trialNumber < endOfTrialList ):
+		# If it is beofre the last trial...
+		if( self.trialNumber < numTrialsInBlock  ):
 			
 			recalAfterTrial_idx = self.blocks_bl[self.blockNumber].recalAfterTrial_idx
 			
@@ -943,13 +970,11 @@ class Experiment(viz.EventClass):
 				
 			# Increment trial 
 			self.trialNumber += 1
+			self.absTrialNumber += 1
 			
-			## Play sound
-			viz.playSound(soundBank.beep_f)
 			## Remove obstacle
-			#print 'End of Trial :> Attempting to remove Obs'
 			self.currentTrial.removeObs()
-			#print 'End of Trial :> Remove Obs'
+			
 		
 			## Stop timers
 			if( type(self.currentTrial.metronomeTimerObj) is not list ):			
@@ -961,10 +986,9 @@ class Experiment(viz.EventClass):
 			if( type(self.currentTrial.trialTimeoutTimerObj) is not list ):			
 				self.currentTrial.trialTimeoutTimerObj.remove()
 			
-			# Stop loggging mocap data
-			self.config.mocap.stopLogging()
 			
-		if( self.trialNumber == endOfTrialList ):
+		# If it is the last trial in the block, increment block
+		if( self.trialNumber == numTrialsInBlock ):
 			
 			# Increment block
 			
@@ -973,6 +997,7 @@ class Experiment(viz.EventClass):
 			
 			self.blockNumber += 1
 			self.trialNumber = 0
+			self.absTrialNumber += 1
 			
 			# End experiment
 			if( self.blockNumber == len(self.blocks_bl) ):
@@ -1057,10 +1082,6 @@ class Experiment(viz.EventClass):
 		# Change the Obstacle Color to Green as a visual feedback for the subject
 		if( self.currentTrial.objIsVirtual):
 			self.currentTrial.obsObj.setColor(viz.WHITE)
-		
-		# Start logging data
-		self.config.mocap.writeStringToLog('Trial: ' + str(self.trialNumber+1))
-		self.config.mocap.startLogging()
 		
 		
 	def inputLegLength(self):
@@ -1231,13 +1252,18 @@ class Experiment(viz.EventClass):
 		print 'Starting block: ' + str(self.blockNumber) + ' Trial: ' + str(self.trialNumber)
 		self.currentTrial = self.blocks_bl[self.blockNumber].trials_tr[self.trialNumber]
 	
-
-
 	def appendTrialToEndOfBlock(self):
 		
 		print 'Appending current trial onto the end of the block list.'
 		self.blocks_bl[self.blockNumber].trials_tr.append(self.currentTrial)
+		self.blocks_bl[self.blockNumber].numTrials = len(self.blocks_bl[self.blockNumber].trials_tr)
+		self.eventFlag.setStatus(8)
 		
+#	def removeTrialFromEndOfBlock(self):
+#		
+#		print 'Appending current trial onto the end of the block list.'
+#		self.blocks_bl[self.blockNumber].trials_tr.pop()
+#		self.blocks_bl[self.blockNumber].numTrials = len(self.blocks_bl[self.blockNumber].trials_tr)
 		
 class eventFlag(viz.EventClass):
 	
@@ -1253,7 +1279,7 @@ class eventFlag(viz.EventClass):
 		# 5 Left foot collides with obstacle
 		# 6 Trial end
 		# 7 Block end
-		# 8 Network signalled trial redo
+		# 8 Trial appended to end of block
 		
 		viz.EventClass.__init__(self)
 		

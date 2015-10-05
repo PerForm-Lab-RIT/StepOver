@@ -779,7 +779,7 @@ class phasespaceInterface(viz.EventClass):
                 
                 self.trackers[rigid.id].update_pose(newPose)
                 
-                if( self.loggingData and oldPoseFrame < rigid.frame ):
+                if( self.loggingData is True and oldPoseFrame < rigid.frame ):
                     # Write out new data
                     self.logData(self.trackers[rigid.id])
                         
