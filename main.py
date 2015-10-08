@@ -582,6 +582,7 @@ class Experiment(viz.EventClass):
 				# Present the obstacle
 				self.currentTrial.obsObj.node3D.enable(viz.RENDERING)
 				self.currentTrial.obsIsVisible = True
+				self.eventFlag.setStatus(3)
 				
 		######################################################################
 		## Are the feet in the starting position?
@@ -924,10 +925,11 @@ class Experiment(viz.EventClass):
 		##########
 		# Mainview
 		
-		viewPos_XYZ = viz.MainView.getPosition()
+		headLink = self.config.virtualPlane.head_tracker
+		viewPos_XYZ = headLink.getPosition()
 		outputString = outputString + '[ viewPos_XYZ %f %f %f ] ' % (viewPos_XYZ[0],viewPos_XYZ[1],viewPos_XYZ[2])
 
-		viewQUAT_XYZW = viz.MainView.getMatrix()
+		viewQUAT_XYZW = headLink.getQuat()
 		outputString = outputString + '[ viewQUAT_XYZW %f %f %f %f ] ' % ( viewQUAT_XYZW[0], viewQUAT_XYZW[1], viewQUAT_XYZW[2], viewQUAT_XYZW[3] )
 		
 		################################################################################################
@@ -1301,12 +1303,13 @@ class eventFlag(viz.EventClass):
 		
 		# 1 Trial Start
 		# 2 Experiment start
-		# 3 
+		# 3 Obstacle is made visible
 		# 4 Right foot collides with obstacle
 		# 5 Left foot collides with obstacle
 		# 6 Trial end
 		# 7 Block end
 		# 8 Trial appended to end of block
+		
 		
 		viz.EventClass.__init__(self)
 		
