@@ -651,8 +651,7 @@ class Experiment(viz.EventClass):
 					self.currentTrial.startTime = time.time()
 
 					# Present the obstacle
-					self.currentTrial.placeObs(self.room)
-					self.currentTrial.obsObj.node3D.disable(viz.RENDERING)
+					
 					
 					#if( self.blockNumber > 0 ):
 						# Num trials from previous blocks
@@ -689,6 +688,8 @@ class Experiment(viz.EventClass):
 		
 		if( self.currentTrial.approachingObs == True ):
 			
+			
+			
 			obstacle = self.currentTrial.obsObj.collisionBox
 				
 			for idx in range(len(thePhysEnv.collisionList_idx_physNodes)):
@@ -697,22 +698,23 @@ class Experiment(viz.EventClass):
 				physNode2 = thePhysEnv.collisionList_idx_physNodes[idx][1]
 				
 				if( physNode1 == leftFoot.physNode and physNode2 == obstacle.physNode):
+				
 
 					self.eventFlag.setStatus(4)
 					
 					collisionLoc_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
 					self.currentTrial.collisionLocOnObs_XYZ = collisionLoc_XYZ
 					
-					viz.playSound(soundBank.beep)
+					viz.playSound(soundBank.bounce)
 				
 				elif( physNode1 == rightFoot.physNode and physNode2 == obstacle.physNode ):
-					
+	
 					self.eventFlag.setStatus(5)
 					collisionLoc_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
 
 					self.currentTrial.collisionLocOnObs_XYZ = collisionLoc_XYZ
 										
-					viz.playSound(soundBank.beep)
+					viz.playSound(soundBank.bounce)
 			
 	def start(self):
 		
@@ -1087,6 +1089,7 @@ class Experiment(viz.EventClass):
 		# Important because it calls the join() command
 		# <thread>.join() merges the thread and prevents a premature exit
 		# ... for exaple, before the thread has finished writing mocap data to the file
+		
 		self.config.mocap.stop_thread()
 		
 		print 'End of Trial & Block ==> TxT file Saved & Closed'
@@ -1100,12 +1103,17 @@ class Experiment(viz.EventClass):
 		
 		if( type(self.currentTrial.metronomeTimerObj) is not list ):			
 			self.currentTrial.metronomeTimerObj.remove()
-
+		
+		self.currentTrial.placeObs(self.room)	
+		self.currentTrial.obsObj.node3D.disable(viz.RENDERING)
+		self.currentTrial.obsObj.setColor(viz.WHITE)
+		
 		viz.playSound(soundBank.go)
 		
-		# Change the Obstacle Color to Green as a visual feedback for the subject
-		if( self.currentTrial.objIsVirtual and self.currentTrial.obsObj != -1 ):
-			self.currentTrial.obsObj.setColor(viz.WHITE)
+		# Change the Obstacle Color to white as a visual feedback for the subject
+		#if( self.currentTrial.objIsVirtual and self.currentTrial.obsObj != -1 ):
+		
+		
 		
 		
 	def inputLegLength(self):
@@ -1647,16 +1655,38 @@ rf = experimentObject.room.rightFoot
 
 #demoMode(experimentObject)
 
-#grid = vizshape.addGrid()
-#grid.scale([0.25,0.25,0.25])
 
+def addGrid():
+	experimentObject.room.floor.node3D.remove()
+	grid = vizshape.addGrid()
+	grid.scale([1/10.0,1/10.0,1/10.0])
+
+ob1 = False
+b1 = False
+b2 = False
+b3 = False
+b4 = False
+b5 = False
+
+def addCalibTargs():
+	ob1 = obstacleObj(experimentObject.room,0.25,[0,0,1])
+	
+	#b1 = vizshape.addBox([0.26 ,0.26, 0.17])
+	b1 = vizshape.addBox(size=[0.05 ,0.01, 0.05],pos=[0.5,0,0])
+	b2 = vizshape.addBox(size=[0.0, 5 ,0.01, 0.05],pos=[-0.5,0,0])
+	b3 = vizshape.addBox(size=[0.05 ,0.01, 0.05],pos=[0,0,0.5])
+	b4 = vizshape.addBox(size=[0.05 ,0.01, 0.05],pos=[0,0,-0.5])
+	b5 = vizshape.addBox(size=[0.05 ,0.01, 0.05],pos=[0,0,0])
+	
 # If you want to see spheres for each marker
+
 
 def checkObs():
 	print experimentObject.currentTrial.obsObj.getPosition()
 	print experimentObject.currentTrial.obsObj.collisionBox.node3D.getPosition(viz.ABS_GLOBAL)
 	print experimentObject.currentTrial.obsObj.collisionBox.physNode.body.getPosition()
-
+	
+	
 #vizshape.addAxes().setScale([0.5, 0.5, 0.5])
 #vizshape.addBox(size=(0.05,0.05,0.05))
 # experimentObject.config.mocap.get_MarkerPos(0,0.5)

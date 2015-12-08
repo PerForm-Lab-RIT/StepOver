@@ -3,9 +3,9 @@
 <nearPlane>0.100000</nearPlane>
 <wall>
 <name>floor</name>
-<upperLeft>-1.015722 0.000000 1.788749</upperLeft>
-<upperRight>1.299068 0.000000 1.766443</upperRight>
-<lowerLeft>-1.098900 0.000000 -2.357157</lowerLeft>
-<lowerRight>1.255104 0.000000 -2.387526</lowerRight>
+<upperLeft>-1.028725 0.000000 1.844944</upperLeft>
+<upperRight>1.312107 0.000000 1.822452</upperRight>
+<lowerLeft>-1.020640 0.000000 -2.239299</lowerLeft>
+<lowerRight>1.257069 0.000000 -2.293993</lowerRight>
 </wall>
 </vizcave>
