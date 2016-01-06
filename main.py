@@ -48,23 +48,20 @@ import vizconnect
 
 expConfigFileName = 'exampleExpConfig.cfg'
 
-
-#############################
-useNetwork = True
+############################
 
 if( useNetwork ):
-	networkClient = 'performVR'.upper()
+	networkClient = 'performLabVR2'.upper()
 	viz.net.addPort(5000) # Send data over port 5000
 
-#def appendTrialToEndOfBlock(e):
-#	
-#	experimentObject.appendTrialToEndOfBlock()
-#	
-#	import winsound
-#	Freq = 1500 # Set Frequency To 2500 Hertz
-#	Dur = 100 # Set Duration To 1000 ms == 1 second
-#	winsound.Beep(Freq,Dur)
-#	
+def appendTrialToEndOfBlock(e):
+
+	experimentObject.appendTrialToEndOfBlock()
+
+	import winsound
+	Freq = 1500 # Set Frequency To 2500 Hertz
+	Dur = 100 # Set Duration To 1000 ms == 1 second
+	winsound.Beep(Freq,Dur)
 
 class NumberCount():
 	def __init__(self):
@@ -93,9 +90,6 @@ inch = 0.0254
 m = 1
 eps = .01
 nan = float('NaN')
-
-
-
 
 # Create a globally accessible soundbank.
 # To access within a member function, 
@@ -600,25 +594,8 @@ class Experiment(viz.EventClass):
 			
 			if( self.currentTrial.subIsInBox is True and 
 				self.currentTrial.waitingForGo is False ):
-					
-				# Begin lockout period
-				#print 'Subject is ready and waiting in the box. Present the obstacle.'
 				
-				# Yes, the head is inside the standing box
-				self.currentTrial.waitingForGo = True
-				
-				
-				# Metronome has been deactivated
-				#if( type(self.currentTrial.metronomeTimerObj) is list ):
-					# Start a metronome that continues for the duration of the trial
-					#self.currentTrial.metronomeTimerObj = vizact.ontimer2(self.metronomeTimeMS/1000, self.numClicksBeforeGo,self.metronomeLowTic)
-				
-				timeUntilGoSignal = ((self.numClicksBeforeGo)*self.metronomeTimeMS)/1000
-				
-				# Start the go signal timer
-				if( type(self.currentTrial.goSignalTimerObj) is list ):
-					# Start a metronome that continues for the duration of the trial
-					self.currentTrial.goSignalTimerObj = vizact.ontimer2(timeUntilGoSignal, 0,self.giveGoSignal)
+				self.subjectHasEnteredBox()
 
 			########################################################################
 			## Subject has just left the box
@@ -628,47 +605,14 @@ class Experiment(viz.EventClass):
 				########################################
 				### Subject left before go signal was given!
 				if(self.currentTrial.goSignalGiven is False ):
-					  
-					# Head was removed from box after viewing was initiated
-					print 'Left box prematurely!'
 					
-					viz.playSound(soundBank.cowbell);
-					
-					# Remove box
-					self.currentTrial.waitingForGo = False
-					self.currentTrial.removeObs();
-	
-					self.currentTrial.goSignalTimerObj.setEnabled(viz.TOGGLE);
-					self.currentTrial.goSignalTimerObj = [];
+					self.falseStart()
 				
 				##############################################
 				### Go signal already given.  Starting the trial
 				elif(self.currentTrial.goSignalGiven is True):
 					
-					print 'Starting trial ==> Type', self.currentTrial.trialType
-					self.eventFlag.setStatus(1)
-					self.currentTrial.approachingObs = True
-					self.currentTrial.startTime = time.time()
-
-					# Present the obstacle
-					
-					
-					#if( self.blockNumber > 0 ):
-						# Num trials from previous blocks
-						#absTrialNum = [absTrialNum + sum(self.blocks_bl[bIdx].numTrials) for block in self.blocks_bl[0:(self.blockNumber-1)]]
-											
-					# Start logging data
-					self.config.mocap.writeStringToLog('Start: ' + str(self.absTrialNumber+1) )
-					self.config.mocap.startLogging()
-		
-					# Start data collection
-					viz.playSound(soundBank.beep_f)
-					
-					if( type(self.currentTrial.goSignalTimerObj) is not list ):			
-						self.currentTrial.goSignalTimerObj.remove()
-					
-					vizact.ontimer2(self.maxTrialDuration, 0,self.endTrial)
-				
+					self.startTrial()
 				
 				
 				
@@ -715,13 +659,69 @@ class Experiment(viz.EventClass):
 					self.currentTrial.collisionLocOnObs_XYZ = collisionLoc_XYZ
 										
 					viz.playSound(soundBank.bounce)
-			
-	def start(self):
+	def subjectHasEnteredBox(self):
+		
+		# Begin lockout period
+		#print 'Subject is ready and waiting in the box. Present the obstacle.'
+		
+		# Yes, the head is inside the standing box
+		self.currentTrial.waitingForGo = True
+		
+		# Metronome has been deactivated
+		#if( type(self.currentTrial.metronomeTimerObj) is list ):
+			# Start a metronome that continues for the duration of the trial
+			#self.currentTrial.metronomeTimerObj = vizact.ontimer2(self.metronomeTimeMS/1000, self.numClicksBeforeGo,self.metronomeLowTic)
+		
+		timeUntilGoSignal = ((self.numClicksBeforeGo)*self.metronomeTimeMS)/1000
+		
+		# Start the go signal timer
+		if( type(self.currentTrial.goSignalTimerObj) is list ):
+			# Start a metronome that continues for the duration of the trial
+			self.currentTrial.goSignalTimerObj = vizact.ontimer2(timeUntilGoSignal, 0,self.giveGoSignal)
+	
+	def startTrial(self):
+		
+		print 'Starting trial ==> Type', self.currentTrial.trialType
+		self.eventFlag.setStatus(1)
+		self.currentTrial.approachingObs = True
+		self.currentTrial.startTime = time.time()
+		
+		#if( self.blockNumber > 0 ):
+			# Num trials from previous blocks
+			#absTrialNum = [absTrialNum + sum(self.blocks_bl[bIdx].numTrials) for block in self.blocks_bl[0:(self.blockNumber-1)]]
+								
+		# Start logging data
+		self.config.mocap.writeStringToLog('Start: ' + str(self.absTrialNumber+1) )
+		self.config.mocap.startLogging()
+
+		# Start data collection
+		viz.playSound(soundBank.beep_f)
+		
+		if( type(self.currentTrial.goSignalTimerObj) is not list ):			
+			self.currentTrial.goSignalTimerObj.remove()
+		
+		vizact.ontimer2(self.maxTrialDuration, 0,self.endTrial)
+		#vizact.ontimer2(self.maxTrialDuration, 0,self.endTrial)
+				
+	def falseStart(self):
+		
+		# Head was removed from box after viewing was initiated
+		print 'Left box prematurely!'
+		
+		viz.playSound(soundBank.cowbell);
+		
+		# Remove box
+		self.currentTrial.waitingForGo = False
+		self.currentTrial.removeObs();
+
+		self.currentTrial.goSignalTimerObj.setEnabled(viz.TOGGLE);
+		self.currentTrial.goSignalTimerObj = [];
+		
+	def startExperiment(self):
 		
 		##This is called when the experiment should begin.
 		self.setEnabled(True)
 
-	
 	def onKeyDown(self, key):
 		"""
 		Interactive commands can be given via the keyboard. Some are provided here. You'll likely want to add more.
@@ -1460,9 +1460,15 @@ class trial(viz.EventClass):
 		
 		self.obsHeightLegRatio = float(config.expCfg['trialTypes'][self.trialType]['obsHeightLegRatio'])
 		
+				
+		self.obsWidth = float(config.expCfg['room']['obstacleWidth'])
+		self.obsDepth = float(config.expCfg['room']['obstacleDepth'])
+		
+		
 		self.obsDistance_distType = []
 		self.obsDistance_distParams = []
 		self.obsDistance = []
+
 		
 		# The rest of variables are set below, by drawing values from distributions
 #		
@@ -1534,14 +1540,24 @@ class trial(viz.EventClass):
 			
 		
 		self.obsLoc_XYZ = [self.room.standingBoxOffset_X,0,self.obsZPos]
-				
+			
+			
 		if( self.objIsVirtual == False ):
 			
 			
 			# I place a virtual obstacle but dont render it
 			# This allows for collision detection
 			# also, the same analysis can be applied to real-world and virtual trials
-			self.obsObj = obstacleObj(room,self.obsHeightM,self.obsLoc_XYZ)			
+			
+			self.obsObj = visEnv.visObj(self.parentRoom,'box',[self.obsDepth,self.obsWidth,self.obsHeightM])	
+		
+			self.obsObj.node3D.enablePhysNode()
+			self.obsObj.node3D.physNode.isLinked = 1;
+			self.obsObj.node3D.linkPhysToVis()	
+			
+			self.obsObj.setPosition(self.obsLoc_XYZ)
+			
+			#obstacleObj(room,self.obsHeightM,self.obsLoc_XYZ)			
 			self.obsObj.node3D.disable(viz.RENDERING)
 			
 			#experimentObject.currentTrial.obsObj.crossBarHeight
@@ -1576,7 +1592,12 @@ class trial(viz.EventClass):
 		
 		else:
 			
-			self.obsObj = obstacleObj(room,self.obsHeightM,self.obsLoc_XYZ)
+			self.obsObj = visEnv.visObj(self.parentRoom,'box',[self.obsDepth,self.obsWidth,self.obsHeightM])	
+		
+			self.obsObj.node3D.enablePhysNode()
+			self.obsObj.node3D.physNode.isLinked = 1;
+			self.obsObj.node3D.linkPhysToVis()	
+			
 			self.obsObj.node3D.color(viz.RED)
 			print'Placing Obstacle at', self.obsLoc_XYZ, 'height', self.obsHeightM
 	
@@ -1640,7 +1661,7 @@ def demoMode(experimentObject):
 ## and populates itself with a list of blocks.  Each block contains a list of trials
 
 experimentObject = Experiment(expConfigFileName)
-experimentObject.start()
+experimentObject.startExperiment()
 
 lf = experimentObject.room.leftFoot
 #lf.node3D.disable(viz.RENDERING)
