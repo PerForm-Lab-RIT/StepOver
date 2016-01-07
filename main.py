@@ -570,8 +570,10 @@ class Experiment(viz.EventClass):
 			subPos_XYZ = viz.MainView.getPosition()
 			subDistFromStartBox = abs(subPos_XYZ[2] - boxPos_XYZ[2])
 			
+			obsTriggerPosX  = self.currentTrial.obsTriggerPosX 
+
 			# Check if their distance is above threshold
-			if( subDistFromStartBox  > self.config.expCfg['experiment']['showObsAtDistOf'] ):
+			if( subDistFromStartBox  > obsTriggerPosX ):
 				
 				# Present the obstacle
 				self.currentTrial.obsObj.node3D.enable(viz.RENDERING)
@@ -846,6 +848,8 @@ class Experiment(viz.EventClass):
 			
 			outputString = outputString + ' obstacleHeight %f ' % (self.currentTrial.obsHeightM)
 			
+			outputString = outputString + ' obsTriggerPosX %f ' % (self.currentTrial.obsTriggerPosX)
+			
 			outputString = outputString + ' isWalkingDownAxis %d ' % (self.room.isWalkingDownAxis)
 			outputString = outputString + ' trialNum %d ' % (self.trialNumber)
 			
@@ -857,6 +861,7 @@ class Experiment(viz.EventClass):
 			
 			rightFoot_LWH = self.room.rightFoot.node3D.getBoundingBox().getSize()
 			outputString = outputString + ' [ rightFoot_LWH %f %f %f ] ' % (rightFoot_LWH[2], rightFoot_LWH[0], rightFoot_LWH[1])
+			
 			
 			
 		if( self.eventFlag.status == 4 or self.eventFlag.status == 5 ):		
@@ -1469,6 +1474,9 @@ class trial(viz.EventClass):
 		self.obsDistance_distParams = []
 		self.obsDistance = []
 
+		self.obsTriggerPosX_distType = []		
+		self.obsTriggerPosX_distParams = []
+		self.obsTriggerPosX = []
 		
 		# The rest of variables are set below, by drawing values from distributions
 #		
