@@ -48,6 +48,8 @@ import vizconnect
 
 expConfigFileName = 'exampleExpConfig.cfg'
 
+useNetwork = True;
+
 ############################
 
 if( useNetwork ):
@@ -481,13 +483,16 @@ class Experiment(viz.EventClass):
 				
 		##  Setup virtual plane
 		if( self.config.use_phasespace == True and self.config.sysCfg['virtualPlane']['attachGlassesToRigid']):
-		
-			#eyeSphere = visEnv.visObj(self.room,'sphere',size=0.1,alpha=1)
-			#eyeSphere.node3D.setParent(self.room.objects)
 			
 			self.setupShutterGlasses()
 			self.setupFeet()
 			pass
+		else:
+			eyeSphere = visEnv.visObj(self.room,'sphere',size=0.1,alpha=1)
+			eyeSphere.node3D.setParent(self.room.objects)
+			eyeSphere = self.room.eyeSphere
+			eyeSphere.node3D.visible(viz.TOGGLE)
+			self.config.virtualPlane.attachViewToGlasses(eyeSphere.node3D,viz.MainView)
 			
 		##############################################################
 		##############################################################
@@ -529,10 +534,12 @@ class Experiment(viz.EventClass):
 		expMetaDataStr = self.getExperimentMetaData()
 		self.expDataFile.write(expMetaDataStr + '\n')
 		
-		# MocapInterface handles writing mocap data in a seperate thread. 
-		#self.config.mocap.startLogging('F:\Data\Stepover')
-		self.config.mocap.createLog(dataOutPutDir)
+		if( self.config.use_phasespace == True):
+			# MocapInterface handles writing mocap data in a seperate thread. 
+			#self.config.mocap.startLogging('F:\Data\Stepover')
+			self.config.mocap.createLog(dataOutPutDir)
 		
+			
 		from shutil import copyfile
 		
 		# Copy config files
@@ -634,9 +641,7 @@ class Experiment(viz.EventClass):
 		
 		if( self.currentTrial.approachingObs == True ):
 			
-			
-			
-			obstacle = self.currentTrial.obsObj.collisionBox
+			obstacle = self.currentTrial.obsObj
 				
 			for idx in range(len(thePhysEnv.collisionList_idx_physNodes)):
 				
@@ -645,7 +650,6 @@ class Experiment(viz.EventClass):
 				
 				if( physNode1 == leftFoot.physNode and physNode2 == obstacle.physNode):
 				
-
 					self.eventFlag.setStatus(4)
 					
 					collisionLoc_XYZ,normal,depth,geom1,geom2 = thePhysEnv.contactObjects_idx[0].getContactGeomParams()
@@ -661,6 +665,7 @@ class Experiment(viz.EventClass):
 					self.currentTrial.collisionLocOnObs_XYZ = collisionLoc_XYZ
 										
 					viz.playSound(soundBank.bounce)
+					
 	def subjectHasEnteredBox(self):
 		
 		# Begin lockout period
@@ -795,9 +800,11 @@ class Experiment(viz.EventClass):
 		numBlocks = len(config.expCfg['experiment']['blockList']);
 		outputString = outputString  + 'numBlocks %f ' % (numBlocks)
 						
-		outputString = outputString  + 'mocapRefresh %f ' % (config.mocap.owlParamFrequ)
-		outputString = outputString  + 'mocapInterp %f ' % (config.mocap.owlParamInterp)
-		outputString = outputString  + 'mocapPostProcess %f ' % (config.mocap.owlParamPostProcess)
+		if( self.config.use_phasespace == True ):
+				
+			outputString = outputString  + 'mocapRefresh %f ' % (config.mocap.owlParamFrequ)
+			outputString = outputString  + 'mocapInterp %f ' % (config.mocap.owlParamInterp)
+			outputString = outputString  + 'mocapPostProcess %f ' % (config.mocap.owlParamPostProcess)
 		
 		
 		return outputString 
@@ -1103,6 +1110,7 @@ class Experiment(viz.EventClass):
 		viz.playSound(soundBank.gong)
 
 	def giveGoSignal(self):
+		
 		print 'Go signal given!'
 		self.currentTrial.goSignalGiven = True
 		
@@ -1117,9 +1125,6 @@ class Experiment(viz.EventClass):
 		
 		# Change the Obstacle Color to white as a visual feedback for the subject
 		#if( self.currentTrial.objIsVirtual and self.currentTrial.obsObj != -1 ):
-		
-		
-		
 		
 	def inputLegLength(self):
 		
@@ -1537,8 +1542,9 @@ class trial(viz.EventClass):
 		#print 'Creating object at ' + str(obsLoc)
 		
 		self.obsHeightM = self.config.legLengthCM * self.obsHeightLegRatio / 100
-		
+
 		self.obsZPos = []
+		
 		if( self.room.isWalkingDownAxis ):
 
 			self.obsZPos = self.room.standingBoxOffset_posZ - self.obsDistance
@@ -1599,12 +1605,15 @@ class trial(viz.EventClass):
 			self.objectSizeText.setScale([scale ,scale ,scale])
 		
 		else:
-			
-			self.obsObj = visEnv.visObj(self.parentRoom,'box',[self.obsDepth,self.obsWidth,self.obsHeightM])	
 		
-			self.obsObj.node3D.enablePhysNode()
-			self.obsObj.node3D.physNode.isLinked = 1;
-			self.obsObj.node3D.linkPhysToVis()	
+			self.obsObj = visEnv.visObj(self.room,'box',[self.obsDepth,self.obsWidth,self.obsHeightM])	
+			#self.obsObj = visEnv.visObj(self.room,'box',[self.obsHeightM,self.obsWidth,self.obsDepth])	
+			
+			self.obsObj.enablePhysNode()
+			self.obsObj.physNode.isLinked = 1;
+			self.obsObj.linkPhysToVis()	
+			
+			self.obsObj.node3D.setPosition(self.obsLoc_XYZ)
 			
 			self.obsObj.node3D.color(viz.RED)
 			print'Placing Obstacle at', self.obsLoc_XYZ, 'height', self.obsHeightM
@@ -1688,7 +1697,7 @@ rf = experimentObject.room.rightFoot
 def addGrid():
 	experimentObject.room.floor.node3D.remove()
 	grid = vizshape.addGrid()
-	grid.scale([1/10.0,1/10.0,1/10.0])
+	#grid.scale([1/10.0,1/10.0,1/10.0])
 
 ob1 = False
 b1 = False
