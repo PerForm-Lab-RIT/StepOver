@@ -196,6 +196,13 @@ class Configuration():
 			planeCornerFile = self.sysCfg['virtualPlane']['planeCornerFile']
 			
 			self.virtualPlane = virtualPlane.virtualPlane(self,planeName,isAFloor,planeCornerFile)
+		
+		if self.sysCfg['use_networking']:
+			self.use_networking = True
+			self.netClient = viz.addNetwork( self.sysCfg['networking']['clientName'] )
+		else:
+			self.use_networking = False
+			self.netClient = False
 			
 		self.writer = None #Will get initialized later when the system starts
 		self.writables = list()
@@ -503,6 +510,7 @@ class Experiment(viz.EventClass):
 		self.callback(viz.KEYDOWN_EVENT,  self.onKeyDown)
 		self.callback(viz.KEYUP_EVENT, self.onKeyUp)
 		self.callback( viz.TIMER_EVENT,self._timerCallback )
+		self.callback(viz.NETWORK_EVENT, self._networkCallback)
 		
 		self.perFrameTimerID = viz.getEventID('perFrameTimerID') # Generates a unique ID.
 		self.starttimer( self.perFrameTimerID, viz.FASTEST_EXPIRATION, viz.FOREVER)
@@ -558,16 +566,23 @@ class Experiment(viz.EventClass):
 		# It can be configured to signify the start of a trial, the bounce of a ball, or whatever
 		
 		self.eventFlag = eventFlag()
+	
+	def _networkCallback(self,netPacket):
 		
+		print '*** Received network message ***'
+		print netPacket.message
+		
+		if( netPacket.message == 'numberTaskError' ):
+			self.numberTaskError()
+
+	def numberTaskError(self):
+		
+		print '***numberTaskError***'
+		self.eventFlag.setStatus(8)
+			
 	def _timerCallback(self,timerID):
 
 		mainViewPos_XYZ = viz.MainView.getPosition()
-		
-#		## This is all the per-frame timer stuff
-#		if( self.currentTrial.approachingObs == True and
-#			mainViewPos_XYZ[0] > self.trialEndPosition ):
-#			print 'Passed distance threshold.  Ending trial'
-#			self.endTrial()
 		
 		# If the subject is approaching the invisible obstalce
 		if( self.currentTrial.approachingObs is True and
@@ -656,7 +671,8 @@ class Experiment(viz.EventClass):
 					self.currentTrial.collisionLocOnObs_XYZ = collisionLoc_XYZ
 					
 					viz.playSound(soundBank.bounce)
-				
+
+						
 				elif( physNode1 == rightFoot.physNode and physNode2 == obstacle.physNode ):
 	
 					self.eventFlag.setStatus(5)
@@ -724,6 +740,9 @@ class Experiment(viz.EventClass):
 		self.currentTrial.goSignalTimerObj.setEnabled(viz.TOGGLE);
 		self.currentTrial.goSignalTimerObj = [];
 		
+		if( self.config.netClient ):
+			self.config.netClient.send(message="stop")
+			
 	def startExperiment(self):
 		
 		##This is called when the experiment should begin.
@@ -982,6 +1001,9 @@ class Experiment(viz.EventClass):
 
 	def endTrial(self):
 		
+		if( self.config.netClient ):
+			self.config.netClient.send(message="stop")
+						
 		self.eventFlag.setStatus(6,True)
 		
 		numTrialsInBlock = len(self.blocks_bl[self.blockNumber].trials_tr)
@@ -1123,6 +1145,10 @@ class Experiment(viz.EventClass):
 		
 		viz.playSound(soundBank.go)
 		
+		if( self.config.netClient ):
+			self.config.netClient.send(message="start")
+			
+			
 		# Change the Obstacle Color to white as a visual feedback for the subject
 		#if( self.currentTrial.objIsVirtual and self.currentTrial.obsObj != -1 ):
 		
@@ -1305,7 +1331,9 @@ class Experiment(viz.EventClass):
 		currentBlock.trials_tr.append(trialObj)
 		self.blocks_bl[self.blockNumber].numTrials = len(currentBlock.trials_tr)
 		self.eventFlag.setStatus(8)
-		
+	
+	
+			
 #	def removeTrialFromEndOfBlock(self):
 #		
 #		print 'Appending current trial onto the end of the block list.'
@@ -1326,7 +1354,7 @@ class eventFlag(viz.EventClass):
 		# 5 Left foot collides with obstacle
 		# 6 Trial end
 		# 7 Block end
-		# 8 Trial appended to end of block
+		# 8 Number task error
 		
 		
 		viz.EventClass.__init__(self)
@@ -1607,7 +1635,6 @@ class trial(viz.EventClass):
 		else:
 		
 			self.obsObj = visEnv.visObj(self.room,'box',[self.obsDepth,self.obsWidth,self.obsHeightM])	
-			#self.obsObj = visEnv.visObj(self.room,'box',[self.obsHeightM,self.obsWidth,self.obsDepth])	
 			
 			self.obsObj.enablePhysNode()
 			self.obsObj.physNode.isLinked = 1;
@@ -1730,3 +1757,7 @@ def checkObs():
 # experimentObject.config.mocap.get_MarkerPos(0,0.5)
 
 viz.MainWindow.setStereoSwap(viz.TOGGLE)
+
+# experimentObject.config.netClient.send(message = 'Sent from performLabVR2')
+
+vizact.ontimer(2,experimentObject.config.netClient.send,message = 'Sent from performLabVR2')
