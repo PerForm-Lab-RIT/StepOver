@@ -26,6 +26,7 @@ import winsound
 import virtualPlane
 import vizinput
 import time
+import numpy as np
 
 #import visEnv12
 #import physEnv
@@ -585,7 +586,8 @@ class Experiment(viz.EventClass):
 		mainViewPos_XYZ = viz.MainView.getPosition()
 		
 		# If the subject is approaching the invisible obstalce
-		if( self.currentTrial.approachingObs is True and
+		if( self.currentTrial.isBlankTrial is False and
+			self.currentTrial.approachingObs is True and
 			self.currentTrial.obsIsVisible is False):
 
 			boxPos_XYZ = self.room.standingBox.getPosition()
@@ -724,7 +726,6 @@ class Experiment(viz.EventClass):
 			self.currentTrial.goSignalTimerObj.remove()
 		
 		vizact.ontimer2(self.maxTrialDuration, 0,self.endTrial)
-		#vizact.ontimer2(self.maxTrialDuration, 0,self.endTrial)
 				
 	def falseStart(self):
 		
@@ -861,7 +862,7 @@ class Experiment(viz.EventClass):
 		outputString = outputString + 'sysTime %f ' % (time.time())
 		
 		outputString = outputString + ' eventFlag %d ' % (self.eventFlag.status)
-			
+		outputString = outputString + 'isBlankTrial %d ' % (self.currentTrial.isBlankTrial)
 		
 		if( self.eventFlag.status == 1 ):
 			
@@ -870,11 +871,18 @@ class Experiment(viz.EventClass):
 			## =======================================================================================================
 			## Obstacle Height & Location 
 			## =======================================================================================================
-			outputString = outputString + '[ obstacle_XYZ %f %f %f ] ' % (self.currentTrial.obsLoc_XYZ[0],self.currentTrial.obsLoc_XYZ[1],self.currentTrial.obsLoc_XYZ[2])
 			
-			outputString = outputString + ' obstacleHeight %f ' % (self.currentTrial.obsHeightM)
-			
-			outputString = outputString + ' obsTriggerPosX %f ' % (self.currentTrial.obsTriggerPosX)
+			if( self.currentTrial.isBlankTrial is False ):
+				
+				outputString = outputString + '[ obstacle_XYZ %f %f %f ] ' % (self.currentTrial.obsLoc_XYZ[0],self.currentTrial.obsLoc_XYZ[1],self.currentTrial.obsLoc_XYZ[2])
+				outputString = outputString + ' obstacleHeight %f ' % (self.currentTrial.obsHeightM)
+				outputString = outputString + ' obsTriggerPosX %f ' % (self.currentTrial.obsTriggerPosX)
+				
+			else:
+				outputString = outputString + '[ obstacle_XYZ %f %f %f ] ' % (np.nan,np.nan,np.nan)
+				outputString = outputString + ' obstacleHeight %f ' % (np.nan)
+				outputString = outputString + ' obsTriggerPosX %f ' % (np.nan)
+				
 			
 			outputString = outputString + ' isWalkingDownAxis %d ' % (self.room.isWalkingDownAxis)
 			outputString = outputString + ' trialNum %d ' % (self.trialNumber)
@@ -1139,9 +1147,12 @@ class Experiment(viz.EventClass):
 		if( type(self.currentTrial.metronomeTimerObj) is not list ):			
 			self.currentTrial.metronomeTimerObj.remove()
 		
-		self.currentTrial.placeObs(self.room)	
-		self.currentTrial.obsObj.node3D.disable(viz.RENDERING)
-		self.currentTrial.obsObj.setColor(viz.WHITE)
+		
+		if( self.currentTrial.isBlankTrial is False):
+			
+			self.currentTrial.placeObs(self.room)		
+			self.currentTrial.obsObj.node3D.disable(viz.RENDERING)
+			self.currentTrial.obsObj.setColor(viz.WHITE)
 		
 		viz.playSound(soundBank.go)
 		
@@ -1470,7 +1481,7 @@ class trial(viz.EventClass):
 		self.approachingObs = False
 		self.objIsVirtual = int(config.expCfg['trialTypes'][self.trialType]['objIsVirtual'])
 		self.obsIsVisible = False
-		
+		self.isBlankTrial = int(config.expCfg['trialTypes'][self.trialType]['isBlankTrial'])
 		self.goSignalTimerObj = []
 		self.metronomeTimerObj = []
 		self.trialTimeoutTimerObj = []
@@ -1498,10 +1509,8 @@ class trial(viz.EventClass):
 		
 		self.obsHeightLegRatio = float(config.expCfg['trialTypes'][self.trialType]['obsHeightLegRatio'])
 		
-				
 		self.obsWidth = float(config.expCfg['room']['obstacleWidth'])
 		self.obsDepth = float(config.expCfg['room']['obstacleDepth'])
-		
 		
 		self.obsDistance_distType = []
 		self.obsDistance_distParams = []
@@ -1510,6 +1519,7 @@ class trial(viz.EventClass):
 		self.obsTriggerPosX_distType = []		
 		self.obsTriggerPosX_distParams = []
 		self.obsTriggerPosX = []
+		
 		
 		# The rest of variables are set below, by drawing values from distributions
 #		
@@ -1591,11 +1601,11 @@ class trial(viz.EventClass):
 			# This allows for collision detection
 			# also, the same analysis can be applied to real-world and virtual trials
 			
-			self.obsObj = visEnv.visObj(self.parentRoom,'box',[self.obsDepth,self.obsWidth,self.obsHeightM])	
+			self.obsObj = visEnv.visObj(self.room,'box',[self.obsDepth,self.obsWidth,self.obsHeightM])	
 		
-			self.obsObj.node3D.enablePhysNode()
-			self.obsObj.node3D.physNode.isLinked = 1;
-			self.obsObj.node3D.linkPhysToVis()	
+			self.obsObj.enablePhysNode()
+			self.obsObj.physNode.isLinked = 1;
+			self.obsObj.linkPhysToVis()	
 			
 			self.obsObj.setPosition(self.obsLoc_XYZ)
 			
