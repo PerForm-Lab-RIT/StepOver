@@ -34,8 +34,6 @@ import numpy as np
 import visEnv
 import physEnv
 
-from obstacleClass import obstacleObj
-
 #For hardware configuration
 viz.res.addPath('resources')
 sys.path.append('utils')
@@ -656,7 +654,8 @@ class Experiment(viz.EventClass):
 		leftFoot = self.room.leftFoot
 		rightFoot = self.room.rightFoot
 		
-		if( self.currentTrial.approachingObs == True ):
+		if( self.currentTrial.approachingObs == True and
+		self.currentTrial.isBlankTrial is False ):
 			
 			obstacle = self.currentTrial.obsObj
 				
