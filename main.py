@@ -6,8 +6,7 @@ Things required for transition to PandA Lab setup:
 - rename performLabVR2.cfg as <machineName>.cfg
 - replace all mocap calls with those particular to your system.  I tried to mark them with MOCAP
 - buy a wiimote, or goto <experiment>.registerWiimoteActions and associate the callbacks with keyboard presses
-- 
-
+- d
 90
 """
 
@@ -112,6 +111,7 @@ class soundBank():
 		self.gong = '/Resources/gong.wav'
 		self.beep_f = '/Resourcs/beep_Spike.wav'
 		self.go = '/Resourcs/go.wav'
+		self.noObstacle = '/Resources/No_Obstacle.wav'
 		
 		viz.playSound(self.go,viz.SOUND_PRELOAD)
 		viz.playSound(self.gong,viz.SOUND_PRELOAD)
@@ -122,6 +122,7 @@ class soundBank():
 		viz.playSound(self.highDrip,viz.SOUND_PRELOAD)
 		viz.playSound(self.cowbell,viz.SOUND_PRELOAD)
 		viz.playSound(self.beep,viz.SOUND_PRELOAD)
+		viz.playSound(self.noObstacle,viz.SOUND_PRELOAD)
 
 soundBank = soundBank()
 
@@ -1140,6 +1141,18 @@ class Experiment(viz.EventClass):
 
 	def giveGoSignal(self):
 		
+		# If blank trial
+		# play sound, set sound flag to "played"
+		# return to end function, but call this code again in a few ms
+		if( self.currentTrial.isBlankTrial is True and 
+			self.currentTrial.notifiedOfBlankTrial == False):
+			
+			viz.playSound(soundBank.noObstacle)
+			self.currentTrial.notifiedOfBlankTrial = True
+			self.currentTrial.goSignalTimerObj = vizact.ontimer2(1.0, 0,self.giveGoSignal)
+			
+			return
+			
 		print 'Go signal given!'
 		self.currentTrial.goSignalGiven = True
 		
@@ -1147,8 +1160,9 @@ class Experiment(viz.EventClass):
 			self.currentTrial.metronomeTimerObj.remove()
 		
 		
+		
 		if( self.currentTrial.isBlankTrial is False):
-			
+			# Place obstacle and make it invisible
 			self.currentTrial.placeObs(self.room)		
 			self.currentTrial.obsObj.node3D.disable(viz.RENDERING)
 			self.currentTrial.obsObj.setColor(viz.WHITE)
@@ -1472,6 +1486,7 @@ class trial(viz.EventClass):
 		self.room = room
 		self.obsLoc_XYZ = []
 		self.collisionLocOnObs_XYZ = [-1,-1,-1]
+		self.notifiedOfBlankTrial = False
 		
 		## State flags
 		self.subIsInBox = False
