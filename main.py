@@ -1144,7 +1144,6 @@ class Experiment(viz.EventClass):
 		# If blank trial
 		# play sound, set sound flag to "played"
 		# return to end function, but call this code again in a few ms
-		
 		if( self.currentTrial.isBlankTrial is True and 
 			self.currentTrial.notifiedOfBlankTrial == False):
 			
@@ -1195,7 +1194,7 @@ class Experiment(viz.EventClass):
 	def isVisObjInBox(self,visObj):
 		'''
 		Check to see if the visObj is currently inside the standing box
-		This func is run on every frame for both feet prior before the go signal is given
+		This fun is run on every frame for both feet prior before the go signal is given
 		'''
 		
 		objPos_xyz = visObj.node3D.getPosition()
@@ -1496,17 +1495,11 @@ class trial(viz.EventClass):
 		self.approachingObs = False
 		self.objIsVirtual = int(config.expCfg['trialTypes'][self.trialType]['objIsVirtual'])
 		self.obsIsVisible = False
-		
-		temp = int(config.expCfg['trialTypes'][self.trialType]['isBlankTrial'])
-		if (temp == 0):
-			self.isBlankTrial = False
-		elif (temp == 1):
-			self.isBlankTrial = True
-				
+		self.isBlankTrial = int(config.expCfg['trialTypes'][self.trialType]['isBlankTrial'])
 		self.goSignalTimerObj = []
 		self.metronomeTimerObj = []
 		self.trialTimeoutTimerObj = []
-	
+		
 		#self.legLengthCM = config.expCfg['experiment']['legLengthCM']		
 		self.obsHeightM = []
 		
@@ -1612,7 +1605,7 @@ class trial(viz.EventClass):
 			self.obsZPos = self.room.standingBoxOffset_negZ + self.obsDistance
 			
 		
-		self.obsLoc_XYZ = [self.room.standingBoxOffset_X,self.obsHeightM/2,self.obsZPos]
+		self.obsLoc_XYZ = [self.room.standingBoxOffset_X,0,self.obsZPos]
 			
 			
 		if( self.objIsVirtual == False ):
