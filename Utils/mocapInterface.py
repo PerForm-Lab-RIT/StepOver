@@ -324,14 +324,14 @@ class RigidTracker(PointTracker):
             Currently setup so that you can only update ONE TARGET per rigid body.
         '''
         
-        if( self.pose_update_event ):
+        #if( self.pose_update_event ):
             
-            vizact.removeEvent( self.pose_update_event )
+        #    vizact.removeEvent( self.pose_update_event )
         
-        self.pose_update_event = vizact.onupdate(viz.PRIORITY_LINKS, lambda e: target.setMatrix(self.get_transform) )
+        #self.pose_update_event = vizact.onupdate(viz.PRIORITY_LINKS, lambda e: target.setMatrix(self.get_transform) )
         
-        #self.callback(
-        #    viz.UPDATE_EVENT, lambda e: target.setMatrix(self.get_transform()))
+        self.callback(
+            viz.UPDATE_EVENT, lambda e: target.setMatrix(self.get_transform()))
 
     def update_pose(self, pose):
         '''Update the pose (and transform) for this rigid body.

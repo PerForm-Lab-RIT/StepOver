@@ -1780,7 +1780,7 @@ def checkObs():
 #vizshape.addBox(size=(0.05,0.05,0.05))
 # experimentObject.config.mocap.get_MarkerPos(0,0.5)
 
-viz.MainWindow.setStereoSwap(viz.TOGGLE)
+#viz.MainWindow.setStereoSwap(viz.TOGGLE)
 
 # experimentObject.config.netClient.send(message = 'Sent from performLabVR2')
 
