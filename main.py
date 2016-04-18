@@ -770,11 +770,11 @@ class Experiment(viz.EventClass):
 				mocapSys.resetRigid('shutter')
 			elif key == 'L':
 				mocapSys.resetRigid('left') 
-				self.resizeFootBox('left')
+				#self.resizeFootBox('left')
 				
 			elif key == 'R':
 				mocapSys.resetRigid('right')
-				self.resizeFootBox('right')
+				#self.resizeFootBox('right')
 			
 			elif key == 'O':
 				experimentObject.currentTrial.removeObs()
