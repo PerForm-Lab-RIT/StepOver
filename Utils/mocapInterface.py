@@ -9,6 +9,7 @@ import time
 import viz
 import copy
 import itertools
+import vizact
 
 ERROR_MAP = {
     OWL.OWL_NO_ERROR: 'No Error',
@@ -144,6 +145,8 @@ class RigidTracker(PointTracker):
         self._pose = Pose(pos=(0, 0, 0), quat=(1, 0, 0, 0), cond=-1, frame = -1)
         self._transform = viz.Transform()
         self._localOffset = [0,0,0]
+
+        self.pose_update_event = False
         
         self.filepath = []
         self.filename = []
@@ -318,9 +321,17 @@ class RigidTracker(PointTracker):
         ----------
         target : viz.Object
             An object to link to this rigid tracker.
+            Currently setup so that you can only update ONE TARGET per rigid body.
         '''
-        self.callback(
-            viz.UPDATE_EVENT, lambda e: target.setMatrix(self.get_transform()))
+        
+        if( self.pose_update_event ):
+            
+            vizact.removeEvent( self.pose_update_event )
+        
+        self.pose_update_event = vizact.onupdate(viz.PRIORITY_LINKS, lambda e: target.setMatrix(self.get_transform) )
+        
+        #self.callback(
+        #    viz.UPDATE_EVENT, lambda e: target.setMatrix(self.get_transform()))
 
     def update_pose(self, pose):
         '''Update the pose (and transform) for this rigid body.
