@@ -698,15 +698,39 @@ class phasespaceInterface(viz.EventClass):
 
         if self.loggingData is True:
             self.stopLogging()
-            
     def update_thread(self):
+    
         while self._running:
+            
             self.update()
-            elapsed = viz.tick() - self._updated
-            wait = 1. / self.owlParamFrequ - elapsed
-            while wait < 0:
-                wait += 1. / self.owlParamFrequ
-            #time.sleep(wait)
+            
+            try:
+                elapsed = viz.tick() - self._updated
+            except:
+                tick = viz.tick()
+                upd = self._updated
+                
+            wait = 1. / 1000 - elapsed
+            
+            if( wait > 0 ):
+                time.sleep(wait)
+                
+            #while wait < 0:
+                #wait += 1. / 1000
+
+            
+            
+            
+            
+            
+#    def update_thread(self):
+#        while self._running:
+#            self.update()
+#            elapsed = viz.tick() - self._updated
+#            wait = 1. / self.owlParamFrequ - elapsed
+#            while wait < 0:
+#                wait += 1. / self.owlParamFrequ
+#            #time.sleep(wait)
 
     def start_timer(self):
         self.callback(viz.TIMER_EVENT, self.update_timer)
