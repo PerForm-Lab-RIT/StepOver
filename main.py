@@ -761,7 +761,6 @@ class Experiment(viz.EventClass):
 		##########################################################
 		## Keys used in the defauRRlt mode
 		
-		if (self.inCalibrateMode is False):
 
 			##  More MocapInterace functions
 			if key == 'P':
@@ -1354,7 +1353,7 @@ class Experiment(viz.EventClass):
 		##Add the body to the list
 		currentBlock.trials_tr.append(trialObj)
 		self.blocks_bl[self.blockNumber].numTrials = len(currentBlock.trials_tr)
-		self.eventFlag.setStatus(8)
+		self.eventFlag.setStatus(9)
 	
 	
 			
@@ -1372,13 +1371,13 @@ class eventFlag(viz.EventClass):
 		##  Eventflag
 		
 		# 1 Trial Start
-		# 2 Experiment start
 		# 3 Obstacle is made visible
-		# 4 Right foot collides with obstacle
-		# 5 Left foot collides with obstacle
+		# 4 Left foot collides with obstacle
+		# 5 Right foot collides with obstacle
 		# 6 Trial end
 		# 7 Block end
 		# 8 Number task error
+		# 9 Trial appended to end of block in <Experiment>.appendTrialToEndOfBlock()
 		
 		
 		viz.EventClass.__init__(self)
@@ -1495,11 +1494,18 @@ class trial(viz.EventClass):
 		self.approachingObs = False
 		self.objIsVirtual = int(config.expCfg['trialTypes'][self.trialType]['objIsVirtual'])
 		self.obsIsVisible = False
-		self.isBlankTrial = int(config.expCfg['trialTypes'][self.trialType]['isBlankTrial'])
+		#self.isBlankTrial = int(config.expCfg['trialTypes'][self.trialType]['isBlankTrial'])
 		self.goSignalTimerObj = []
 		self.metronomeTimerObj = []
 		self.trialTimeoutTimerObj = []
 		
+		self.isBlankTrial = []
+		temp = int(config.expCfg['trialTypes'][self.trialType]['isBlankTrial'])
+		if (temp == 0):
+			self.isBlankTrial = False
+		elif (temp == 1):
+			self.isBlankTrial = True
+			
 		#self.legLengthCM = config.expCfg['experiment']['legLengthCM']		
 		self.obsHeightM = []
 		
@@ -1605,8 +1611,8 @@ class trial(viz.EventClass):
 			self.obsZPos = self.room.standingBoxOffset_negZ + self.obsDistance
 			
 		
-		self.obsLoc_XYZ = [self.room.standingBoxOffset_X,0,self.obsZPos]
-			
+		#self.obsLoc_XYZ = [self.room.standingBoxOffset_X,0,self.obsZPos]
+		self.obsLoc_XYZ = [self.room.standingBoxOffset_X,self.obsHeightM/2,self.obsZPos]
 			
 		if( self.objIsVirtual == False ):
 			
@@ -1780,7 +1786,7 @@ def checkObs():
 #vizshape.addBox(size=(0.05,0.05,0.05))
 # experimentObject.config.mocap.get_MarkerPos(0,0.5)
 
-#viz.MainWindow.setStereoSwap(viz.TOGGLE)
+viz.MainWindow.setStereoSwap(viz.TOGGLE)
 
 # experimentObject.config.netClient.send(message = 'Sent from performLabVR2')
 
