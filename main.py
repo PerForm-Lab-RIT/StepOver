@@ -762,38 +762,38 @@ class Experiment(viz.EventClass):
 		## Keys used in the defauRRlt mode
 		
 
+		##  More MocapInterace functions
+		if key == 'P':
+			mocapSys.resetRigid('spine') 
+		elif key == 'S':
+			mocapSys.resetRigid('shutter')
+		elif key == 'L':
+			mocapSys.resetRigid('left') 
+			#self.resizeFootBox('left')
+			
+		elif key == 'R':
+			mocapSys.resetRigid('right')
+			#self.resizeFootBox('right')
+		
+		elif key == 'O':
+			experimentObject.currentTrial.removeObs()
+		
+		elif key == 'A':
+			self.appendTrialToEndOfBlock()
+			
+		if( viz.key.isDown( viz.KEY_CONTROL_L )):
+			
 			##  More MocapInterace functions
-			if key == 'P':
-				mocapSys.resetRigid('spine') 
-			elif key == 'S':
-				mocapSys.resetRigid('shutter')
-			elif key == 'L':
-				mocapSys.resetRigid('left') 
-				#self.resizeFootBox('left')
-				
-			elif key == 'R':
-				mocapSys.resetRigid('right')
-				#self.resizeFootBox('right')
-			
-			elif key == 'O':
-				experimentObject.currentTrial.removeObs()
-			
-			elif key == 'A':
-				self.appendTrialToEndOfBlock()
-				
-			if( viz.key.isDown( viz.KEY_CONTROL_L )):
-				
-				##  More MocapInterace functions
-				if key == 'p':
-					mocapSys.saveRigid('spine') # MOCAP
-				elif key == 's':
-					mocapSys.saveRigid('shutter') # MOCAP
-				elif key == 'l':
-					mocapSys.saveRigid('left') # MOCAP
-				elif key == 'r':
-					mocapSys.saveRigid('right') # MOCAP
-			
-			
+			if key == 'p':
+				mocapSys.saveRigid('spine') # MOCAP
+			elif key == 's':
+				mocapSys.saveRigid('shutter') # MOCAP
+			elif key == 'l':
+				mocapSys.saveRigid('left') # MOCAP
+			elif key == 'r':
+				mocapSys.saveRigid('right') # MOCAP
+		
+		
 				
 			
 			
@@ -1148,7 +1148,7 @@ class Experiment(viz.EventClass):
 			
 			viz.playSound(soundBank.noObstacle)
 			self.currentTrial.notifiedOfBlankTrial = True
-			self.currentTrial.goSignalTimerObj = vizact.ontimer2(1.0, 0,self.giveGoSignal)
+			self.currentTrial.goSignalTimerObj = vizact.ontimer2(1.5, 0,self.giveGoSignal)
 			
 			return
 			
@@ -1355,7 +1355,6 @@ class Experiment(viz.EventClass):
 		self.blocks_bl[self.blockNumber].numTrials = len(currentBlock.trials_tr)
 		self.eventFlag.setStatus(9)
 	
-	
 			
 #	def removeTrialFromEndOfBlock(self):
 #		
@@ -1420,10 +1419,7 @@ class eventFlag(viz.EventClass):
 		else:
 			self.status = 0; # 0 Means nothing is happening
 			self.collisionLocOnObs_XYZ = [nan,nan,nan]
-
-			
-			
-		
+	
 class block():
 	def __init__(self,config=None,blockNum=1, room = None):
 			
