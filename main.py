@@ -1234,7 +1234,10 @@ class Experiment(viz.EventClass):
 		shutterRigid = config.mocap.returnPointerToRigid('shutter') # Here, 
 		shutterRigid.link_pose(eyeSphere.node3D)
 				
-		self.config.virtualPlane.attachViewToGlasses(eyeSphere.node3D,shutterRigid)
+		self.config.virtualPlane.attachViewToGlasses(eyeSphere.node3D)
+		
+		###
+		
 			
 	def setupFeet(self):
 
@@ -1778,8 +1781,8 @@ def checkObs():
 	print experimentObject.currentTrial.obsObj.collisionBox.physNode.body.getPosition()
 	
 	
-#vizshape.addAxes().setScale([0.5, 0.5, 0.5])
-#vizshape.addBox(size=(0.05,0.05,0.05))
+#ax = vizshape.addAxes().setScale([0.5, 0.5, 0.5])
+#box = vizshape.addBox(size=(0.05,0.05,0.05))
 # experimentObject.config.mocap.get_MarkerPos(0,0.5)
 
 viz.MainWindow.setStereoSwap(viz.TOGGLE)

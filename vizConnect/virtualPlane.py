@@ -70,7 +70,7 @@ def initDisplays(initFlag=vizconnect.INIT_INDEPENDENT, initList=None):
 			_window = viz.MainWindow
 			
 			#VC: set the fullscreen monitor
-			viz.window.setFullscreenMonitor(2)
+			viz.window.setFullscreenMonitor(3)
 			viz.window.setFullscreen(True)
 			
 			#VC: set some parameters

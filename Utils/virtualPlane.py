@@ -118,7 +118,7 @@ class virtualPlane():
 
 		
 		
-	def attachViewToGlasses(self,visNode,glassesRigid):
+	def attachViewToGlasses(self,visNode):
 		
 		"""
 		Create tracker object that represents the users head position, specifically the center of the eyes.
